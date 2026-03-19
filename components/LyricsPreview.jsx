@@ -1,26 +1,36 @@
-export function LyricsPreview({ songs }) {
-  if (!songs?.length) {
-    return (
-      <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-300">
-        No songs detected yet.
-      </div>
-    );
-  }
-
+export default function LyricsPreview({ parsedSongs }) {
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-      <div className="text-sm font-medium">Preview</div>
-      <div className="mt-3 space-y-4">
-        {songs.map((s) => (
-          <div key={s.title} className="rounded-lg border border-neutral-800 p-3">
-            <div className="text-sm font-semibold">{s.title}</div>
-            <div className="mt-2 text-xs text-neutral-300">
-              Scenes: {s.scenes.length}
-            </div>
+    <div>
+      <div className="mb-3">
+        <h2 className="text-xl font-semibold text-ink dark:text-slate-100">
+          Lyrics Preview
+        </h2>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+          Verify the songs and scene splits detected from your file.
+        </p>
+      </div>
+      <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
+        {parsedSongs.length ? (
+          <div className="space-y-4">
+            {parsedSongs.map((song) => (
+              <div key={song.songTitle}>
+                <div className="text-sm font-semibold text-ink dark:text-slate-100">
+                  {song.songTitle}
+                </div>
+                <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                  {song.scenes.map((scene, index) => (
+                    <div key={`${song.songTitle}-${index}`}>
+                      Scene {index + 1} ({scene.split("\n").length} lines)
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        ) : (
+          <div>No songs parsed yet. Upload a lyrics file to preview the scenes.</div>
+        )}
       </div>
     </div>
   );
 }
-

@@ -1,74 +1,3 @@
-export function generateOBSSceneCollection({ template, songs, settings }) {
-  const collection = structuredClone(template);
-
-  const scenes = [];
-  const sources = [];
-
-  let sceneIdCounter = 1;
-  let sourceIdCounter = 1;
-
-  function makeUuid() {
-    return crypto.randomUUID();
-  }
-
-  for (const song of songs) {
-    song.scenes.forEach((sceneText, idx) => {
-      const sceneName = `${song.title}-${idx + 1}`;
-      const sourceName = `lyrics-source-${sourceIdCounter++}`;
-
-      const sourceUuid = makeUuid();
-      sources.push({
-        uuid: sourceUuid,
-        name: sourceName,
-        id: "text_gdiplus",
-        settings: {
-          text: sceneText,
-          font: {
-            face: settings.fontFace,
-            flags: settings.fontBold ? 1 : 0,
-            size: settings.fontSize,
-            style: "Bold"
-          },
-          color1: settings.color1,
-          align: settings.align,
-          valign: settings.valign,
-          extents: true,
-          extents_cx: settings.extentsCx,
-          extents_cy: settings.extentsCy
-        }
-      });
-
-      const sceneUuid = makeUuid();
-      scenes.push({
-        uuid: sceneUuid,
-        name: sceneName,
-        id: sceneIdCounter++,
-        items: [
-          {
-            name: sourceName,
-            source_uuid: sourceUuid,
-            transform: {
-              position: { x: 0, y: 0 },
-              bounds_type: "OBS_BOUNDS_SCALE_INNER",
-              bounds: { x: settings.canvasWidth, y: settings.canvasHeight }
-            }
-          }
-        ]
-      });
-    });
-  }
-
-  collection.name = collection.name || "Lyrics Scene Collection";
-  collection.scenes = scenes;
-  collection.sources = sources;
-  collection.canvas = {
-    width: settings.canvasWidth,
-    height: settings.canvasHeight
-  };
-
-  return collection;
-}
-
 import obsTemplate from "@/templates/obsTemplate.json";
 
 const DEFAULT_TEXT_SETTINGS = {
@@ -102,17 +31,15 @@ const DEFAULT_TRANSFORM = {
 
 export function generateOBSJson(parsedSongs, settings, templateOverride) {
   const template = deepClone(templateOverride || obsTemplate);
-  const canvas = getCanvasSize(template, settings);
-  const useDefaultAlignment = !templateOverride;
 
   if (Array.isArray(template.scenes) && template.scenes.length) {
-    return generateLegacyScenes(template, parsedSongs, settings, canvas);
+    return generateLegacyScenes(template, parsedSongs, settings);
   }
 
   if (Array.isArray(template.sources)) {
     const hasSceneSources = template.sources.some(isSceneSource);
     if (hasSceneSources) {
-      return generateSceneSources(template, parsedSongs, settings, canvas, useDefaultAlignment);
+      return generateSceneSources(template, parsedSongs, settings);
     }
   }
 
@@ -139,90 +66,11 @@ export function generateOBSJson(parsedSongs, settings, templateOverride) {
       ],
     },
     parsedSongs,
-    settings,
-    canvas
+    settings
   );
 }
 
-function generateLegacyScenes(template, parsedSongs, settings, canvas) {
-  const templateScene = template.scenes?.[0] || { name: "Template Scene", sources: [] };
-  const templateSceneItem = templateScene.sources?.[0] || { id: "text_gdiplus" };
-  const templateSource =
-    template.sources?.find(
-      (source) =>
-        source.uuid === templateSceneItem.source_uuid ||
-        source.uuid === templateSceneItem.uuid
-    ) || template.sources?.[0];
-
-  const scenes = [];
-  const sources = [];
-  const sceneOrder = [];
-  let sceneItemId = 1;
-  let sourceCount = 1;
-
-  parsedSongs.forEach((song) => {
-    const safeTitle = normalizeTitleForSceneName(song.songTitle);
-    song.scenes.forEach((sceneText, sceneIndex) => {
-      const sceneUuid = getUuid();
-      const sourceUuid = getUuid();
-      const sceneName = `${safeTitle}-${sceneIndex + 1}`;
-      const sourceName = `lyrics-source-${sourceCount}`;
-
-      const textSettings = buildTextSettings(sceneText, settings, templateSource);
-      const transformSettings = buildTransformSettings(settings, templateSceneItem, canvas);
-
-      const source = deepClone(templateSource || {});
-      source.name = sourceName;
-      source.uuid = sourceUuid;
-      source.id = "text_gdiplus";
-      if (source.versioned_id) {
-        source.versioned_id = "text_gdiplus";
-      }
-      source.settings = textSettings;
-      sources.push(source);
-
-      const sceneItem = deepClone(templateSceneItem || {});
-      sceneItem.name = sourceName;
-      sceneItem.id = "text_gdiplus";
-      if ("source_uuid" in sceneItem || templateSceneItem?.source_uuid) {
-        sceneItem.source_uuid = sourceUuid;
-      }
-      if ("uuid" in sceneItem || templateSceneItem?.uuid) {
-        sceneItem.uuid = sourceUuid;
-      }
-      sceneItem.settings = textSettings;
-      sceneItem.transform = transformSettings;
-      sceneItem.scene_item_id = sceneItemId;
-      sceneItem.visible = true;
-      sceneItem.locked = sceneItem.locked ?? false;
-
-      const scene = deepClone(templateScene);
-      scene.name = sceneName;
-      if ("uuid" in scene || templateScene.uuid) {
-        scene.uuid = sceneUuid;
-      }
-      scene.sources = [sceneItem];
-      scenes.push(scene);
-      sceneOrder.push({ name: sceneName });
-
-      sceneItemId += 1;
-      sourceCount += 1;
-    });
-  });
-
-  template.scenes = scenes;
-  template.sources = sources;
-  template.scene_order = sceneOrder;
-  if (scenes.length) {
-    template.current_program_scene = scenes[0].name;
-    template.current_preview_scene = scenes[0].name;
-    template.current_scene = scenes[0].name;
-  }
-  template.name = template.name || "Church Lyrics Scenes";
-  return template;
-}
-
-function generateSceneSources(template, parsedSongs, settings, canvas, useDefaultAlignment) {
+function generateSceneSources(template, parsedSongs, settings) {
   const sources = Array.isArray(template.sources) ? template.sources : [];
   const sourceByUuid = new Map(sources.map((source) => [source.uuid, source]));
   const sceneSources = sources.filter(isSceneSource);
@@ -238,11 +86,12 @@ function generateSceneSources(template, parsedSongs, settings, canvas, useDefaul
 
   const newSources = [...staticSources];
   const sceneOrder = [];
+  const titleCounts = new Map();
 
   let sourceCount = 1;
 
   parsedSongs.forEach((song) => {
-    const safeTitle = normalizeTitleForSceneName(song.songTitle);
+    const safeTitle = getUniqueSongPrefix(song.songTitle, titleCounts);
     song.scenes.forEach((sceneText, sceneIndex) => {
       const sceneName = `${safeTitle}-${sceneIndex + 1}`;
       const sourceName = `lyrics-source-${sourceCount}`;
@@ -288,9 +137,7 @@ function generateSceneSources(template, parsedSongs, settings, canvas, useDefaul
               visible: true,
               locked: false,
             },
-            settings,
-            canvas,
-            useDefaultAlignment
+            settings
           );
           updatedItems.push(updatedItem);
           return;
@@ -322,6 +169,92 @@ function generateSceneSources(template, parsedSongs, settings, canvas, useDefaul
     template.current_scene = sceneOrder[0].name;
     template.current_program_scene = sceneOrder[0].name;
     template.current_preview_scene = sceneOrder[0].name;
+  }
+  template.name = template.name || "Church Lyrics Scenes";
+  return template;
+}
+
+function generateLegacyScenes(template, parsedSongs, settings) {
+  const templateScene = template.scenes?.[0] || { name: "Template Scene", sources: [] };
+  const templateSources = Array.isArray(template.sources) ? template.sources : [];
+  const { textItemTemplate, textSourceTemplate } = findLegacyTextItem(
+    templateScene,
+    templateSources
+  );
+
+  const staticItems = (templateScene.sources || []).filter(
+    (item) => item !== textItemTemplate
+  );
+  const staticSources = templateSources.filter((source) => !isTextSource(source));
+
+  const scenes = [];
+  const sources = [...staticSources];
+  const sceneOrder = [];
+  let sceneItemId = 1;
+  const titleCounts = new Map();
+  let sourceCount = 1;
+
+  parsedSongs.forEach((song) => {
+    const safeTitle = getUniqueSongPrefix(song.songTitle, titleCounts);
+    song.scenes.forEach((sceneText, sceneIndex) => {
+      const sceneUuid = getUuid();
+      const sourceUuid = getUuid();
+      const sceneName = `${safeTitle}-${sceneIndex + 1}`;
+      const sourceName = `lyrics-source-${sourceCount}`;
+
+      const textSettings = buildTextSettings(sceneText, settings, textSourceTemplate);
+      const transformSettings = buildTransformSettings(settings, textItemTemplate);
+
+      if (textSourceTemplate) {
+        const source = deepClone(textSourceTemplate);
+        source.name = sourceName;
+        source.uuid = sourceUuid;
+        source.id = "text_gdiplus";
+        if (source.versioned_id) {
+          source.versioned_id = source.versioned_id;
+        }
+        source.settings = textSettings;
+        sources.push(source);
+      }
+
+      const sceneItem = deepClone(textItemTemplate || { id: "text_gdiplus" });
+      sceneItem.name = sourceName;
+      sceneItem.id = "text_gdiplus";
+      if ("source_uuid" in sceneItem || textItemTemplate?.source_uuid) {
+        sceneItem.source_uuid = sourceUuid;
+      }
+      if ("uuid" in sceneItem || textItemTemplate?.uuid) {
+        sceneItem.uuid = sourceUuid;
+      }
+      sceneItem.settings = textSettings;
+      sceneItem.transform = transformSettings;
+      sceneItem.scene_item_id = sceneItemId;
+      sceneItem.visible = true;
+      sceneItem.locked = sceneItem.locked ?? false;
+
+      const scene = deepClone(templateScene);
+      scene.name = sceneName;
+      if ("uuid" in scene || templateScene.uuid) {
+        scene.uuid = sceneUuid;
+      }
+      scene.sources = [...staticItems.map(deepClone), sceneItem];
+      scenes.push(scene);
+      sceneOrder.push({ name: sceneName });
+
+      sceneItemId += 1;
+      sourceCount += 1;
+    });
+  });
+
+  template.scenes = scenes;
+  if (sources.length) {
+    template.sources = sources;
+  }
+  template.scene_order = sceneOrder;
+  if (scenes.length) {
+    template.current_program_scene = scenes[0].name;
+    template.current_preview_scene = scenes[0].name;
+    template.current_scene = scenes[0].name;
   }
   template.name = template.name || "Church Lyrics Scenes";
   return template;
@@ -370,6 +303,24 @@ function findSceneTemplate(sceneSources, sourceByUuid) {
   };
 }
 
+function findLegacyTextItem(scene, sources) {
+  const items = Array.isArray(scene?.sources) ? scene.sources : [];
+  const directTextItem = items.find((item) => item.id === "text_gdiplus");
+  if (directTextItem) {
+    return { textItemTemplate: directTextItem, textSourceTemplate: null };
+  }
+
+  for (const item of items) {
+    const source = sources.find((src) => src.uuid === item.source_uuid || src.uuid === item.uuid);
+    if (source && isTextSource(source)) {
+      return { textItemTemplate: item, textSourceTemplate: source };
+    }
+  }
+
+  const fallbackSource = sources.find(isTextSource) || { id: "text_gdiplus" };
+  return { textItemTemplate: items[0], textSourceTemplate: fallbackSource };
+}
+
 function collectStaticSources(sourceByUuid, templateSceneSource, textSourceUuid) {
   const items = Array.isArray(templateSceneSource?.settings?.items)
     ? templateSceneSource.settings.items
@@ -414,6 +365,7 @@ function buildTextSettings(text, settings, templateSource) {
       : typeof baseSettings.extents === "boolean"
         ? baseSettings.extents
         : DEFAULT_TEXT_SETTINGS.extents;
+
   const fittedFontSize = extentsEnabled
     ? getFittedFontSize({
         text,
@@ -441,7 +393,7 @@ function buildTextSettings(text, settings, templateSource) {
   };
 }
 
-function buildTransformSettings(settings, templateSceneItem, canvas) {
+function buildTransformSettings(settings, templateSceneItem) {
   const baseTransform =
     templateSceneItem?.transform && typeof templateSceneItem.transform === "object"
       ? templateSceneItem.transform
@@ -459,15 +411,33 @@ function buildTransformSettings(settings, templateSceneItem, canvas) {
       x: Number.isFinite(basePosition.x) ? basePosition.x : 0,
       y: (Number.isFinite(basePosition.y) ? basePosition.y : 0) + verticalOffset,
     },
-    bounds: normalizeBounds(baseTransform.bounds, {
-      x: canvas.width,
-      y: canvas.height,
-    }),
   };
 }
 
+function applySceneItemOverrides(item, settings) {
+  const verticalOffset = Number(settings?.verticalOffset) || 0;
+  const basePos = item?.pos && typeof item.pos === "object" ? item.pos : { x: 0, y: 0 };
+
+  return {
+    ...item,
+    pos: {
+      x: Number.isFinite(basePos.x) ? basePos.x : 0,
+      y: (Number.isFinite(basePos.y) ? basePos.y : 0) + verticalOffset,
+    },
+  };
+}
+
+function getUniqueSongPrefix(title, titleCounts) {
+  const base = normalizeTitleForSceneName(title);
+  const count = (titleCounts.get(base) || 0) + 1;
+  titleCounts.set(base, count);
+  return count === 1 ? base : `${base}_${count}`;
+}
+
 function normalizeTitleForSceneName(title) {
-  const compact = String(title || "Song").replace(/[^a-zA-Z0-9]+/g, "");
+  const safe = String(title || "Song").trim();
+  if (!safe) return "Song";
+  const compact = safe.replace(/[^\p{L}\p{N}]+/gu, "");
   return compact || "Song";
 }
 
@@ -568,88 +538,5 @@ function getUuid() {
 function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
 }
-
-function getCanvasSize(template, settings) {
-  const resolution = template?.resolution || template?.canvases?.[0]?.resolution;
-  const width =
-    Number(resolution?.x || resolution?.width) ||
-    Number(settings?.textBoxWidth) ||
-    DEFAULT_TRANSFORM.bounds.x;
-  const height =
-    Number(resolution?.y || resolution?.height) ||
-    Number(settings?.textBoxHeight) ||
-    DEFAULT_TRANSFORM.bounds.y;
-  return {
-    width: Number.isFinite(width) && width > 0 ? width : DEFAULT_TRANSFORM.bounds.x,
-    height: Number.isFinite(height) && height > 0 ? height : DEFAULT_TRANSFORM.bounds.y,
-  };
-}
-
-function normalizeBounds(bounds, fallback) {
-  const hasValidBounds =
-    Number.isFinite(bounds?.x) && bounds.x > 0 && Number.isFinite(bounds?.y) && bounds.y > 0;
-  return hasValidBounds ? bounds : fallback;
-}
-
-function applySceneItemOverrides(item, settings, canvas, useDefaultAlignment) {
-  const verticalOffset = Number(settings?.verticalOffset) || 0;
-  const basePos = item?.pos && typeof item.pos === "object" ? item.pos : { x: 0, y: 0 };
-  const bounds = normalizeBounds(item.bounds, {
-    x: canvas.width,
-    y: canvas.height,
-  });
-
-  if (!useDefaultAlignment) {
-    return {
-      ...item,
-      pos: {
-        x: Number.isFinite(basePos.x) ? basePos.x : 0,
-        y: (Number.isFinite(basePos.y) ? basePos.y : 0) + verticalOffset,
-      },
-      bounds,
-    };
-  }
-
-  const halfHeight = canvas.height / 2;
-  const aspect = canvas.width / canvas.height;
-  const pos = {
-    x: 0,
-    y: verticalOffset,
-  };
-
-  return {
-    ...item,
-    align: 5,
-    bounds_type: 2,
-    bounds_align: 0,
-    pos,
-    pos_rel: {
-      x: pos.x / halfHeight - aspect,
-      y: pos.y / halfHeight - 1,
-    },
-    scale: {
-      x: 1,
-      y: 1,
-    },
-    scale_rel: {
-      x: 1,
-      y: 1,
-    },
-    scale_ref: {
-      x: canvas.width,
-      y: canvas.height,
-    },
-    bounds,
-    bounds_rel: {
-      x: bounds.x / halfHeight,
-      y: bounds.y / halfHeight,
-    },
-  };
-}
-
-
-
-
-
 
 
