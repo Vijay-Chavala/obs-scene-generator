@@ -1,0 +1,11 @@
+{
+  "name": "OBS Scene Collection",
+  "version": 1,
+  "scenes": [],
+  "sources": [],
+  "canvas": {
+    "width": 1920,
+    "height": 1080
+  }
+}
+
