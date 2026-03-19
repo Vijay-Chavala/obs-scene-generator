@@ -31,15 +31,16 @@ const DEFAULT_TRANSFORM = {
 
 export function generateOBSJson(parsedSongs, settings, templateOverride) {
   const template = deepClone(templateOverride || obsTemplate);
+  const canvas = getCanvasSize(template, settings);
 
   if (Array.isArray(template.scenes) && template.scenes.length) {
-    return generateLegacyScenes(template, parsedSongs, settings);
+    return generateLegacyScenes(template, parsedSongs, settings, canvas);
   }
 
   if (Array.isArray(template.sources)) {
     const hasSceneSources = template.sources.some(isSceneSource);
     if (hasSceneSources) {
-      return generateSceneSources(template, parsedSongs, settings);
+      return generateSceneSources(template, parsedSongs, settings, canvas);
     }
   }
 
@@ -66,11 +67,12 @@ export function generateOBSJson(parsedSongs, settings, templateOverride) {
       ],
     },
     parsedSongs,
-    settings
+    settings,
+    canvas
   );
 }
 
-function generateSceneSources(template, parsedSongs, settings) {
+function generateSceneSources(template, parsedSongs, settings, canvas) {
   const sources = Array.isArray(template.sources) ? template.sources : [];
   const sourceByUuid = new Map(sources.map((source) => [source.uuid, source]));
   const sceneSources = sources.filter(isSceneSource);
@@ -137,7 +139,8 @@ function generateSceneSources(template, parsedSongs, settings) {
               visible: true,
               locked: false,
             },
-            settings
+            settings,
+            canvas
           );
           updatedItems.push(updatedItem);
           return;
@@ -174,7 +177,7 @@ function generateSceneSources(template, parsedSongs, settings) {
   return template;
 }
 
-function generateLegacyScenes(template, parsedSongs, settings) {
+function generateLegacyScenes(template, parsedSongs, settings, canvas) {
   const templateScene = template.scenes?.[0] || { name: "Template Scene", sources: [] };
   const templateSources = Array.isArray(template.sources) ? template.sources : [];
   const { textItemTemplate, textSourceTemplate } = findLegacyTextItem(
@@ -203,7 +206,7 @@ function generateLegacyScenes(template, parsedSongs, settings) {
       const sourceName = `lyrics-source-${sourceCount}`;
 
       const textSettings = buildTextSettings(sceneText, settings, textSourceTemplate);
-      const transformSettings = buildTransformSettings(settings, textItemTemplate);
+      const transformSettings = buildTransformSettings(settings, textItemTemplate, canvas);
 
       if (textSourceTemplate) {
         const source = deepClone(textSourceTemplate);
@@ -365,13 +368,16 @@ function buildTextSettings(text, settings, templateSource) {
       : typeof baseSettings.extents === "boolean"
         ? baseSettings.extents
         : DEFAULT_TEXT_SETTINGS.extents;
+  const margin = getMargin(settings);
+  const effectiveWidth = Math.max(100, textBoxWidth - margin * 2);
+  const effectiveHeight = Math.max(100, textBoxHeight - margin * 2);
 
   const fittedFontSize = extentsEnabled
     ? getFittedFontSize({
         text,
         fontSize: baseFontSize,
-        textBoxWidth,
-        textBoxHeight,
+        textBoxWidth: effectiveWidth,
+        textBoxHeight: effectiveHeight,
       })
     : baseFontSize;
 
@@ -388,12 +394,12 @@ function buildTextSettings(text, settings, templateSource) {
     align: alignValue,
     valign: valignValue,
     extents: extentsEnabled,
-    extents_cx: textBoxWidth,
-    extents_cy: textBoxHeight,
+    extents_cx: extentsEnabled ? effectiveWidth : textBoxWidth,
+    extents_cy: extentsEnabled ? effectiveHeight : textBoxHeight,
   };
 }
 
-function buildTransformSettings(settings, templateSceneItem) {
+function buildTransformSettings(settings, templateSceneItem, canvas) {
   const baseTransform =
     templateSceneItem?.transform && typeof templateSceneItem.transform === "object"
       ? templateSceneItem.transform
@@ -404,34 +410,111 @@ function buildTransformSettings(settings, templateSceneItem) {
       ? baseTransform.position
       : { x: 0, y: 0 };
   const verticalOffset = Number(settings.verticalOffset) || 0;
+  const center = getCanvasCenter(canvas);
+  const bounds = getBoundsForMargin(settings, canvas);
+  const alignment =
+    typeof baseTransform.alignment === "number"
+      ? baseTransform.alignment
+      : DEFAULT_TRANSFORM.alignment;
+  const boundsAlignment =
+    typeof baseTransform.bounds_alignment === "number"
+      ? baseTransform.bounds_alignment
+      : DEFAULT_TRANSFORM.bounds_alignment;
 
   return {
     ...baseTransform,
     position: {
-      x: Number.isFinite(basePosition.x) ? basePosition.x : 0,
-      y: (Number.isFinite(basePosition.y) ? basePosition.y : 0) + verticalOffset,
+      x: Number.isFinite(center.x) ? center.x : Number.isFinite(basePosition.x) ? basePosition.x : 0,
+      y:
+        (Number.isFinite(center.y) ? center.y : Number.isFinite(basePosition.y) ? basePosition.y : 0) +
+        verticalOffset,
     },
+    alignment: typeof alignment === "number" ? 0 : alignment,
+    bounds_alignment: typeof boundsAlignment === "number" ? 0 : boundsAlignment,
+    bounds_type: baseTransform.bounds_type || DEFAULT_TRANSFORM.bounds_type,
+    bounds,
   };
 }
 
-function applySceneItemOverrides(item, settings) {
+function applySceneItemOverrides(item, settings, canvas) {
   const verticalOffset = Number(settings?.verticalOffset) || 0;
   const basePos = item?.pos && typeof item.pos === "object" ? item.pos : { x: 0, y: 0 };
+  const center = getCanvasCenter(canvas);
+  const bounds = getBoundsForMargin(settings, canvas);
+  const useBounds = bounds && Number.isFinite(bounds.x) && Number.isFinite(bounds.y);
+  const pos = {
+    x: Number.isFinite(center.x) ? center.x : Number.isFinite(basePos.x) ? basePos.x : 0,
+    y:
+      (Number.isFinite(center.y) ? center.y : Number.isFinite(basePos.y) ? basePos.y : 0) +
+      verticalOffset,
+  };
 
   return {
     ...item,
-    pos: {
-      x: Number.isFinite(basePos.x) ? basePos.x : 0,
-      y: (Number.isFinite(basePos.y) ? basePos.y : 0) + verticalOffset,
-    },
+    pos,
+    pos_rel: item?.pos_rel ? getRelativePos(pos, canvas) : item?.pos_rel,
+    align: typeof item?.align === "number" ? 0 : item?.align,
+    bounds_align: typeof item?.bounds_align === "number" ? 0 : item?.bounds_align,
+    bounds_type: typeof item?.bounds_type !== "undefined" ? item.bounds_type : 2,
+    bounds: useBounds ? bounds : item?.bounds,
+    bounds_rel: item?.bounds_rel ? getRelativeBounds(bounds, canvas) : item?.bounds_rel,
   };
 }
 
-function getUniqueSongPrefix(title, titleCounts) {
-  const base = normalizeTitleForSceneName(title);
-  const count = (titleCounts.get(base) || 0) + 1;
-  titleCounts.set(base, count);
-  return count === 1 ? base : `${base}_${count}`;
+function getMargin(settings) {
+  const margin = Number(settings?.textMargin);
+  if (!Number.isFinite(margin) || margin <= 0) return 0;
+  return margin;
+}
+
+function getCanvasCenter(canvas) {
+  const width = Number(canvas?.width);
+  const height = Number(canvas?.height);
+  return {
+    x: Number.isFinite(width) ? width / 2 : 0,
+    y: Number.isFinite(height) ? height / 2 : 0,
+  };
+}
+
+function getBoundsForMargin(settings, canvas) {
+  const width = Number(canvas?.width);
+  const height = Number(canvas?.height);
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return DEFAULT_TRANSFORM.bounds;
+  }
+  if (settings?.useCustomTextExtents) {
+    return { x: width, y: height };
+  }
+  const margin = getMargin(settings);
+  return {
+    x: Math.max(100, width - margin * 2),
+    y: Math.max(100, height - margin * 2),
+  };
+}
+
+function getRelativePos(pos, canvas) {
+  const width = Number(canvas?.width);
+  const height = Number(canvas?.height);
+  const denom = height / 2;
+  if (!Number.isFinite(width) || !Number.isFinite(height) || !Number.isFinite(denom) || denom === 0) {
+    return { x: 0, y: 0 };
+  }
+  return {
+    x: (pos.x - width / 2) / denom,
+    y: (pos.y - height / 2) / denom,
+  };
+}
+
+function getRelativeBounds(bounds, canvas) {
+  const height = Number(canvas?.height);
+  const denom = height / 2;
+  if (!Number.isFinite(bounds?.x) || !Number.isFinite(bounds?.y) || !Number.isFinite(denom) || denom === 0) {
+    return { x: 0, y: 0 };
+  }
+  return {
+    x: bounds.x / denom,
+    y: bounds.y / denom,
+  };
 }
 
 function normalizeTitleForSceneName(title) {
@@ -439,6 +522,13 @@ function normalizeTitleForSceneName(title) {
   if (!safe) return "Song";
   const compact = safe.replace(/[^\p{L}\p{N}]+/gu, "");
   return compact || "Song";
+}
+
+function getUniqueSongPrefix(title, titleCounts) {
+  const base = normalizeTitleForSceneName(title);
+  const count = (titleCounts.get(base) || 0) + 1;
+  titleCounts.set(base, count);
+  return count === 1 ? base : `${base}_${count}`;
 }
 
 function alignmentToObs(alignment, fallback = 1) {
@@ -483,6 +573,7 @@ function getFittedFontSize({
   minFontSize = 64,
   lineHeightFactor = 1.1,
   charWidthFactor = 0.5,
+  maxScale = 1.35,
 }) {
   const safeFontSize = Number(fontSize) > 0 ? Number(fontSize) : DEFAULT_TEXT_SETTINGS.font.size;
   const safeWidth = Number(textBoxWidth) > 0 ? Number(textBoxWidth) : DEFAULT_TEXT_SETTINGS.extents_cx;
@@ -511,9 +602,31 @@ function getFittedFontSize({
   const estimatedHeight = estimatedLines * safeFontSize * lineHeightFactor;
   const heightScale = estimatedHeight > 0 ? safeHeight / estimatedHeight : 1;
 
-  const scale = Math.min(1, widthScale, heightScale);
+  const scale = Math.min(widthScale, heightScale, maxScale);
   const fitted = Math.floor(safeFontSize * scale);
   return Math.max(minFontSize, fitted);
+}
+
+function getCanvasSize(template, settings) {
+  const resolution = template?.resolution || template?.canvases?.[0]?.resolution;
+  const width =
+    Number(resolution?.x || resolution?.width) ||
+    Number(settings?.textBoxWidth) ||
+    DEFAULT_TRANSFORM.bounds.x;
+  const height =
+    Number(resolution?.y || resolution?.height) ||
+    Number(settings?.textBoxHeight) ||
+    DEFAULT_TRANSFORM.bounds.y;
+  return {
+    width: Number.isFinite(width) && width > 0 ? width : DEFAULT_TRANSFORM.bounds.x,
+    height: Number.isFinite(height) && height > 0 ? height : DEFAULT_TRANSFORM.bounds.y,
+  };
+}
+
+function normalizeBounds(bounds, fallback) {
+  const hasValidBounds =
+    Number.isFinite(bounds?.x) && bounds.x > 0 && Number.isFinite(bounds?.y) && bounds.y > 0;
+  return hasValidBounds ? bounds : fallback;
 }
 
 function getUuid() {
@@ -538,5 +651,13 @@ function getUuid() {
 function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
 }
+
+
+
+
+
+
+
+
 
 

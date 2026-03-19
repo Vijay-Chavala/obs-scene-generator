@@ -114,6 +114,16 @@ export default function SettingsPanel({ settings, onChange }) {
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
+          <label className="flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-300">
+            Text Margin (px)
+            <input
+              type="number"
+              min={0}
+              value={settings.textMargin || 0}
+              onChange={update("textMargin")}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            />
+          </label>
           <div className="flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-300">
             Use Custom Text Extents
             <Switch.Root

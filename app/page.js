@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS = {
   verticalOffset: 0,
   textBoxWidth: 1920,
   textBoxHeight: 1080,
+  textMargin: 60,
   useCustomTextExtents: false,
 };
 
