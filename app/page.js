@@ -126,10 +126,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen px-6 py-12">
       <header className="mx-auto mb-10 max-w-6xl">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="inline-flex items-center rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 shadow-card dark:bg-slate-900/80 dark:text-slate-200">
-            Modern OBS lyric automation
-          </div>
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={toggleTheme}

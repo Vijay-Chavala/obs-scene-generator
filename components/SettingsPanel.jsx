@@ -11,6 +11,33 @@ export default function SettingsPanel({ settings, onChange }) {
     onChange({ [key]: value });
   };
 
+  const teluguFonts = [
+    "Mandali",
+    "dhurjati",
+    "Gidugu",
+    "Gurajada",
+    "LakkiReddy",
+    "mallanna",
+    "Mandali-Regular",
+    "NATS",
+    "NTR",
+    "Peddana-Regular",
+    "Ponnala",
+    "PottiSreeramulu",
+    "ramabhadra",
+    "Ramaraja-Regular",
+    "RaviPrakash",
+    "suranna",
+    "Suravaram",
+    "SyamalaRamana",
+    "TenaliRamakrishna-Regular",
+    "TimmanaRegular",
+  ];
+
+  const fontOptions = Array.from(
+    new Set([settings.fontFamily, ...teluguFonts].filter(Boolean))
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -29,12 +56,17 @@ export default function SettingsPanel({ settings, onChange }) {
         <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-300">
             Font Family
-            <input
-              type="text"
+            <select
               value={settings.fontFamily}
               onChange={update("fontFamily")}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-            />
+            >
+              {fontOptions.map((font) => (
+                <option key={font} value={font}>
+                  {font}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-300">
             Font Size
