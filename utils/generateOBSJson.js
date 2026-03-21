@@ -29,18 +29,43 @@ const DEFAULT_TRANSFORM = {
   crop: { left: 0, top: 0, right: 0, bottom: 0 },
 };
 
-export function generateOBSJson(parsedSongs, settings, templateOverride) {
+const DEFAULT_IMAGE_SOURCE = {
+  id: "image_source",
+  versioned_id: "image_source",
+  settings: {
+    file: "",
+    unload: true,
+    linear_alpha: false,
+  },
+  private_settings: {},
+};
+
+const DEFAULT_VIDEO_SOURCE = {
+  id: "ffmpeg_source",
+  versioned_id: "ffmpeg_source",
+  settings: {
+    local_file: "",
+    looping: true,
+    restart_on_activate: true,
+    clear_on_media_end: false,
+  },
+  mixers: 255,
+  muted: false,
+  private_settings: {},
+};
+
+export function generateOBSJson(parsedSongs, settings, templateOverride, songBackgrounds = []) {
   const template = deepClone(templateOverride || obsTemplate);
   const canvas = getCanvasSize(template, settings);
 
   if (Array.isArray(template.scenes) && template.scenes.length) {
-    return generateLegacyScenes(template, parsedSongs, settings, canvas);
+    return generateLegacyScenes(template, parsedSongs, settings, canvas, songBackgrounds);
   }
 
   if (Array.isArray(template.sources)) {
     const hasSceneSources = template.sources.some(isSceneSource);
     if (hasSceneSources) {
-      return generateSceneSources(template, parsedSongs, settings, canvas);
+      return generateSceneSources(template, parsedSongs, settings, canvas, songBackgrounds);
     }
   }
 
@@ -68,22 +93,26 @@ export function generateOBSJson(parsedSongs, settings, templateOverride) {
     },
     parsedSongs,
     settings,
-    canvas
+    canvas,
+    songBackgrounds
   );
 }
 
-function generateSceneSources(template, parsedSongs, settings, canvas) {
+function generateSceneSources(template, parsedSongs, settings, canvas, songBackgrounds) {
   const sources = Array.isArray(template.sources) ? template.sources : [];
   const sourceByUuid = new Map(sources.map((source) => [source.uuid, source]));
   const sceneSources = sources.filter(isSceneSource);
+  const hasConfiguredBackgrounds = hasSongBackgroundAssignments(songBackgrounds);
 
   const { templateSceneSource, textSourceTemplate, textItemTemplate } =
     findSceneTemplate(sceneSources, sourceByUuid);
+  const mediaTemplates = findSceneMediaTemplates(sceneSources, sourceByUuid);
 
   const staticSources = collectStaticSources(
     sourceByUuid,
     templateSceneSource,
-    textItemTemplate?.source_uuid
+    textItemTemplate?.source_uuid,
+    hasConfiguredBackgrounds
   );
 
   const newSources = [...staticSources];
@@ -92,8 +121,21 @@ function generateSceneSources(template, parsedSongs, settings, canvas) {
 
   let sourceCount = 1;
 
-  parsedSongs.forEach((song) => {
+  parsedSongs.forEach((song, songIndex) => {
     const safeTitle = getUniqueSongPrefix(song.songTitle, titleCounts);
+    const songBackground = buildSongBackgroundAsset({
+      song,
+      songIndex,
+      background: songBackgrounds?.[songIndex],
+      safeTitle,
+      mediaTemplates,
+      canvas,
+    });
+
+    if (songBackground) {
+      newSources.push(songBackground.source);
+    }
+
     song.scenes.forEach((sceneText, sceneIndex) => {
       const sceneName = `${safeTitle}-${sceneIndex + 1}`;
       const sourceName = `lyrics-source-${sourceCount}`;
@@ -123,10 +165,33 @@ function generateSceneSources(template, parsedSongs, settings, canvas) {
         : [];
 
       const updatedItems = [];
+      const maxSceneItemId = sceneItems.reduce(
+        (max, item) => (typeof item.id === "number" ? Math.max(max, item.id) : max),
+        0
+      );
+      if (songBackground) {
+        const backgroundItem = createSceneSourceBackgroundItem(
+          songBackground.itemTemplate,
+          songBackground,
+          canvas
+        );
+        if (
+          typeof backgroundItem.id !== "number" ||
+          sceneItems.some((item) => item.id === backgroundItem.id)
+        ) {
+          backgroundItem.id = maxSceneItemId + 1;
+        }
+        updatedItems.push(backgroundItem);
+      }
+
       sceneItems.forEach((item) => {
         const itemSource = sourceByUuid.get(item.source_uuid);
         const isTextItem = itemSource && isTextSource(itemSource);
+        const isMediaItem = itemSource && isBackgroundMediaSource(itemSource);
         if (isTextItem && item.source_uuid !== textItemTemplate?.source_uuid) {
+          return;
+        }
+        if (hasConfiguredBackgrounds && isMediaItem) {
           return;
         }
         if (item.source_uuid === textItemTemplate?.source_uuid) {
@@ -177,18 +242,39 @@ function generateSceneSources(template, parsedSongs, settings, canvas) {
   return template;
 }
 
-function generateLegacyScenes(template, parsedSongs, settings, canvas) {
+function generateLegacyScenes(template, parsedSongs, settings, canvas, songBackgrounds) {
   const templateScene = template.scenes?.[0] || { name: "Template Scene", sources: [] };
   const templateSources = Array.isArray(template.sources) ? template.sources : [];
+  const hasConfiguredBackgrounds = hasSongBackgroundAssignments(songBackgrounds);
   const { textItemTemplate, textSourceTemplate } = findLegacyTextItem(
     templateScene,
     templateSources
   );
+  const mediaTemplates = findLegacyMediaTemplates(template.scenes || [], templateSources);
 
   const staticItems = (templateScene.sources || []).filter(
-    (item) => item !== textItemTemplate
+    (item) => {
+      if (item === textItemTemplate) {
+        return false;
+      }
+      if (!hasConfiguredBackgrounds) {
+        return true;
+      }
+      const source = templateSources.find(
+        (candidate) => candidate.uuid === item.source_uuid || candidate.uuid === item.uuid
+      );
+      return !isBackgroundMediaSource(source);
+    }
   );
-  const staticSources = templateSources.filter((source) => !isTextSource(source));
+  const staticSources = templateSources.filter((source) => {
+    if (isTextSource(source)) {
+      return false;
+    }
+    if (hasConfiguredBackgrounds && isBackgroundMediaSource(source)) {
+      return false;
+    }
+    return true;
+  });
 
   const scenes = [];
   const sources = [...staticSources];
@@ -197,8 +283,21 @@ function generateLegacyScenes(template, parsedSongs, settings, canvas) {
   const titleCounts = new Map();
   let sourceCount = 1;
 
-  parsedSongs.forEach((song) => {
+  parsedSongs.forEach((song, songIndex) => {
     const safeTitle = getUniqueSongPrefix(song.songTitle, titleCounts);
+    const songBackground = buildSongBackgroundAsset({
+      song,
+      songIndex,
+      background: songBackgrounds?.[songIndex],
+      safeTitle,
+      mediaTemplates,
+      canvas,
+    });
+
+    if (songBackground) {
+      sources.push(songBackground.source);
+    }
+
     song.scenes.forEach((sceneText, sceneIndex) => {
       const sceneUuid = getUuid();
       const sourceUuid = getUuid();
@@ -231,7 +330,6 @@ function generateLegacyScenes(template, parsedSongs, settings, canvas) {
       }
       sceneItem.settings = textSettings;
       sceneItem.transform = transformSettings;
-      sceneItem.scene_item_id = sceneItemId;
       sceneItem.visible = true;
       sceneItem.locked = sceneItem.locked ?? false;
 
@@ -240,7 +338,20 @@ function generateLegacyScenes(template, parsedSongs, settings, canvas) {
       if ("uuid" in scene || templateScene.uuid) {
         scene.uuid = sceneUuid;
       }
-      scene.sources = [...staticItems.map(deepClone), sceneItem];
+      const sceneItems = [...staticItems.map(deepClone)];
+      if (songBackground) {
+        const backgroundItem = createLegacyBackgroundItem(
+          songBackground.itemTemplate,
+          songBackground,
+          canvas
+        );
+        backgroundItem.scene_item_id = sceneItemId;
+        sceneItems.push(backgroundItem);
+        sceneItemId += 1;
+      }
+      sceneItem.scene_item_id = sceneItemId;
+      sceneItems.push(sceneItem);
+      scene.sources = sceneItems;
       scenes.push(scene);
       sceneOrder.push({ name: sceneName });
 
@@ -269,6 +380,85 @@ function isSceneSource(source) {
 
 function isTextSource(source) {
   return source?.id === "text_gdiplus" || source?.versioned_id === "text_gdiplus_v3";
+}
+
+function isImageSource(source) {
+  return source?.id === "image_source" || source?.versioned_id === "image_source";
+}
+
+function isVideoSource(source) {
+  return source?.id === "ffmpeg_source" || source?.versioned_id === "ffmpeg_source";
+}
+
+function isBackgroundMediaSource(source) {
+  return isImageSource(source) || isVideoSource(source);
+}
+
+function hasSongBackgroundAssignments(songBackgrounds) {
+  return Array.isArray(songBackgrounds)
+    ? songBackgrounds.some(
+        (background) =>
+          background?.type &&
+          background.type !== "none" &&
+          background.path?.trim()
+      )
+    : false;
+}
+
+function findSceneMediaTemplates(sceneSources, sourceByUuid) {
+  const templates = { image: null, video: null };
+
+  for (const scene of sceneSources) {
+    const items = Array.isArray(scene.settings?.items) ? scene.settings.items : [];
+    for (const item of items) {
+      const source = sourceByUuid.get(item.source_uuid);
+      if (!source) continue;
+      if (!templates.image && isImageSource(source)) {
+        templates.image = {
+          sourceTemplate: source,
+          itemTemplate: item,
+        };
+      }
+      if (!templates.video && isVideoSource(source)) {
+        templates.video = {
+          sourceTemplate: source,
+          itemTemplate: item,
+        };
+      }
+      if (templates.image && templates.video) {
+        return templates;
+      }
+    }
+  }
+
+  return templates;
+}
+
+function findLegacyMediaTemplates(scenes, sources) {
+  const templates = { image: null, video: null };
+  const sceneList = Array.isArray(scenes) ? scenes : [];
+
+  for (const scene of sceneList) {
+    const items = Array.isArray(scene?.sources) ? scene.sources : [];
+
+    for (const item of items) {
+      const source = sources.find(
+        (candidate) => candidate.uuid === item.source_uuid || candidate.uuid === item.uuid
+      );
+      if (!source) continue;
+      if (!templates.image && isImageSource(source)) {
+        templates.image = { sourceTemplate: source, itemTemplate: item };
+      }
+      if (!templates.video && isVideoSource(source)) {
+        templates.video = { sourceTemplate: source, itemTemplate: item };
+      }
+      if (templates.image && templates.video) {
+        return templates;
+      }
+    }
+  }
+
+  return templates;
 }
 
 function findSceneTemplate(sceneSources, sourceByUuid) {
@@ -324,7 +514,12 @@ function findLegacyTextItem(scene, sources) {
   return { textItemTemplate: items[0], textSourceTemplate: fallbackSource };
 }
 
-function collectStaticSources(sourceByUuid, templateSceneSource, textSourceUuid) {
+function collectStaticSources(
+  sourceByUuid,
+  templateSceneSource,
+  textSourceUuid,
+  excludeBackgroundMedia = false
+) {
   const items = Array.isArray(templateSceneSource?.settings?.items)
     ? templateSceneSource.settings.items
     : [];
@@ -339,6 +534,9 @@ function collectStaticSources(sourceByUuid, templateSceneSource, textSourceUuid)
     if (!source || isTextSource(source)) {
       return;
     }
+    if (excludeBackgroundMedia && isBackgroundMediaSource(source)) {
+      return;
+    }
     if (!seen.has(source.uuid)) {
       staticSources.push(deepClone(source));
       seen.add(source.uuid);
@@ -346,6 +544,135 @@ function collectStaticSources(sourceByUuid, templateSceneSource, textSourceUuid)
   });
 
   return staticSources;
+}
+
+function buildSongBackgroundAsset({
+  songIndex,
+  background,
+  safeTitle,
+  mediaTemplates,
+}) {
+  if (!background?.type || background.type === "none" || !background.path?.trim()) {
+    return null;
+  }
+
+  const kind = background.type === "image" ? "image" : "video";
+  const template = mediaTemplates?.[kind] || null;
+  const sourceUuid = getUuid();
+  const sourceName = `${safeTitle}-background-${songIndex + 1}`;
+  const normalizedPath = normalizeObsMediaPath(background.path);
+
+  const source = deepClone(
+    template?.sourceTemplate || (kind === "image" ? DEFAULT_IMAGE_SOURCE : DEFAULT_VIDEO_SOURCE)
+  );
+  source.name = sourceName;
+  source.uuid = sourceUuid;
+  source.id = kind === "image" ? "image_source" : "ffmpeg_source";
+  source.versioned_id = source.versioned_id || source.id;
+  const baseSourceSettings = source.settings || {};
+  source.settings = {
+    ...baseSourceSettings,
+    ...(kind === "image"
+      ? { file: normalizedPath }
+      : template?.sourceTemplate
+        ? { local_file: normalizedPath }
+        : {
+            local_file: normalizedPath,
+            looping: true,
+            restart_on_activate: true,
+            clear_on_media_end: false,
+          }),
+  };
+
+  return {
+    source,
+    sourceUuid,
+    sourceName,
+    type: kind,
+    itemTemplate: template?.itemTemplate || null,
+  };
+}
+
+function createSceneSourceBackgroundItem(itemTemplate, backgroundAsset, canvas) {
+  const item = deepClone(itemTemplate || createDefaultSceneSourceBackgroundItem(backgroundAsset.type, canvas));
+  item.name = backgroundAsset.sourceName;
+  item.source_uuid = backgroundAsset.sourceUuid;
+  item.visible = true;
+  item.locked = false;
+  return item;
+}
+
+function createLegacyBackgroundItem(itemTemplate, backgroundAsset, canvas) {
+  const item = deepClone(
+    itemTemplate || createDefaultLegacyBackgroundItem(backgroundAsset.type, canvas)
+  );
+  item.name = backgroundAsset.sourceName;
+  item.id = backgroundAsset.source.id;
+  if ("source_uuid" in item || itemTemplate?.source_uuid) {
+    item.source_uuid = backgroundAsset.sourceUuid;
+  }
+  if ("uuid" in item || itemTemplate?.uuid) {
+    item.uuid = backgroundAsset.sourceUuid;
+  }
+  item.settings = {
+    ...(item.settings || {}),
+    ...(backgroundAsset.source.settings || {}),
+  };
+  item.visible = true;
+  item.locked = item.locked ?? false;
+  return item;
+}
+
+function createDefaultSceneSourceBackgroundItem(type, canvas) {
+  const fullBounds = { x: canvas.width, y: canvas.height };
+  return {
+    visible: true,
+    locked: false,
+    rot: 0.0,
+    scale_ref: fullBounds,
+    align: 5,
+    bounds_type: type === "image" ? 2 : 0,
+    bounds_align: 0,
+    bounds_crop: false,
+    crop_left: 0,
+    crop_top: 0,
+    crop_right: 0,
+    crop_bottom: 0,
+    group_item_backup: false,
+    pos: { x: 0, y: 0 },
+    pos_rel: getRelativePos({ x: 0, y: 0 }, canvas),
+    scale: { x: 1, y: 1 },
+    scale_rel: { x: 1, y: 1 },
+    bounds: type === "image" ? fullBounds : { x: 0, y: 0 },
+    bounds_rel: type === "image" ? getRelativeBounds(fullBounds, canvas) : { x: 0, y: 0 },
+    scale_filter: "disable",
+    blend_method: "default",
+    blend_type: "normal",
+    show_transition: { duration: 300 },
+    hide_transition: { duration: 300 },
+    private_settings: {},
+  };
+}
+
+function createDefaultLegacyBackgroundItem(type, canvas) {
+  return {
+    id: type === "image" ? "image_source" : "ffmpeg_source",
+    source_uuid: "",
+    uuid: "",
+    transform: {
+      ...DEFAULT_TRANSFORM,
+      position: { x: 0, y: 0 },
+      alignment: 5,
+      bounds_type: type === "image" ? "OBS_BOUNDS_SCALE_INNER" : "OBS_BOUNDS_NONE",
+      bounds: type === "image" ? { x: canvas.width, y: canvas.height } : { x: 0, y: 0 },
+    },
+    visible: true,
+    locked: false,
+  };
+}
+
+function normalizeObsMediaPath(path) {
+  return String(path || "").trim().replace(/\\/g, "/");
 }
 
 function buildTextSettings(text, settings, templateSource) {

@@ -13,6 +13,7 @@ import {
 import FileUploader from "@/components/FileUploader";
 import TemplateUploader from "@/components/TemplateUploader";
 import LyricsPreview from "@/components/LyricsPreview";
+import SongBackgrounds from "@/components/SongBackgrounds";
 import SettingsPanel from "@/components/SettingsPanel";
 import { parseLyrics } from "@/utils/parseLyrics";
 import { generateOBSJson } from "@/utils/generateOBSJson";
@@ -30,11 +31,17 @@ const DEFAULT_SETTINGS = {
   useCustomTextExtents: false,
 };
 
+const EMPTY_SONG_BACKGROUND = {
+  type: "none",
+  path: "",
+};
+
 export default function HomePage() {
   const [fileName, setFileName] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [templateData, setTemplateData] = useState(null);
   const [parsedSongs, setParsedSongs] = useState([]);
+  const [songBackgrounds, setSongBackgrounds] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [generatedJson, setGeneratedJson] = useState(null);
   const [status, setStatus] = useState("");
@@ -53,6 +60,16 @@ export default function HomePage() {
     () => parsedSongs.reduce((sum, song) => sum + song.scenes.length, 0),
     [parsedSongs]
   );
+  const configuredBackgrounds = useMemo(
+    () =>
+      songBackgrounds.filter(
+        (background) =>
+          background?.type &&
+          background.type !== "none" &&
+          background.path?.trim()
+      ).length,
+    [songBackgrounds]
+  );
   const hasTemplate = Boolean(templateData);
   const hasGeneratedJson = Boolean(generatedJson);
 
@@ -60,6 +77,7 @@ export default function HomePage() {
     const parsed = parseLyrics(text);
     setFileName(name || "");
     setParsedSongs(parsed);
+    setSongBackgrounds(parsed.map(() => ({ ...EMPTY_SONG_BACKGROUND })));
     setGeneratedJson(null);
     setStatus(parsed.length ? `Parsed ${parsed.length} song(s) and ${parsed.reduce((sum, song) => sum + song.scenes.length, 0)} scene(s).` : "No songs detected. Check the Song-X Name format.");
   };
@@ -81,13 +99,47 @@ export default function HomePage() {
     setSettings((prev) => ({ ...prev, ...updates }));
   };
 
+  const handleSongBackgroundChange = (songIndex, updates) => {
+    setSongBackgrounds((prev) =>
+      parsedSongs.map((_, index) => {
+        const current = prev[index] || EMPTY_SONG_BACKGROUND;
+        if (index !== songIndex) {
+          return current;
+        }
+        const next = { ...current, ...updates };
+        if (next.type === "none") {
+          return { ...EMPTY_SONG_BACKGROUND };
+        }
+        return next;
+      })
+    );
+    setGeneratedJson(null);
+  };
+
   const handleGenerate = () => {
     if (!parsedSongs.length) {
       setStatus("Upload lyrics before generating scenes.");
       return;
     }
+    const invalidBackgroundIndex = songBackgrounds.findIndex(
+      (background) =>
+        background?.type &&
+        background.type !== "none" &&
+        !background.path?.trim()
+    );
+    if (invalidBackgroundIndex >= 0) {
+      setStatus(
+        `Add a valid media path for ${parsedSongs[invalidBackgroundIndex]?.songTitle || "the selected song"} or set its background to None.`
+      );
+      return;
+    }
     try {
-      const obsJson = generateOBSJson(parsedSongs, settings, templateData);
+      const obsJson = generateOBSJson(
+        parsedSongs,
+        settings,
+        templateData,
+        songBackgrounds
+      );
       setGeneratedJson(obsJson);
       setStatus("OBS scene collection generated. Ready to download.");
     } catch (error) {
@@ -198,9 +250,11 @@ export default function HomePage() {
                   <div className='metric-tile rounded-2xl p-4'>
                     <div className='inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400'>
                       <Music4 size={14} />
-                      Export
+                      Backgrounds
                     </div>
-                    <div className='mt-2 text-sm font-semibold text-ink dark:text-slate-100'>{hasGeneratedJson ? "Ready" : "Pending"}</div>
+                    <div className='mt-2 text-sm font-semibold text-ink dark:text-slate-100'>
+                      {configuredBackgrounds} configured
+                    </div>
                   </div>
                 </div>
 
@@ -223,6 +277,13 @@ export default function HomePage() {
           </div>
           <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
             <LyricsPreview parsedSongs={parsedSongs} />
+          </div>
+          <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
+            <SongBackgrounds
+              parsedSongs={parsedSongs}
+              backgrounds={songBackgrounds}
+              onChange={handleSongBackgroundChange}
+            />
           </div>
         </section>
 
