@@ -24,9 +24,9 @@ export default function LyricsPreview({ parsedSongs }) {
       <div className="rounded-[1.75rem] panel-shell p-4 sm:p-5">
         {parsedSongs.length ? (
           <div className="grid gap-3 lg:grid-cols-2">
-            {parsedSongs.map((song) => (
+            {parsedSongs.map((song, songIndex) => (
               <div
-                key={song.songTitle}
+                key={`${song.songTitle}-${songIndex}`}
                 className="metric-tile rounded-2xl p-4"
               >
                 <div className="flex items-start justify-between gap-3">

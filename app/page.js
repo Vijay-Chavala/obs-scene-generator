@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, LayoutTemplate, Moon, Music4, Sun } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  LayoutTemplate,
+  Moon,
+  Music4,
+  Sparkles,
+  Sun,
+} from "lucide-react";
 import FileUploader from "@/components/FileUploader";
 import TemplateUploader from "@/components/TemplateUploader";
 import LyricsPreview from "@/components/LyricsPreview";
@@ -41,7 +49,10 @@ export default function HomePage() {
     document.documentElement.classList.toggle("dark", nextTheme === "dark");
   }, []);
 
-  const totalScenes = useMemo(() => parsedSongs.reduce((sum, song) => sum + song.scenes.length, 0), [parsedSongs]);
+  const totalScenes = useMemo(
+    () => parsedSongs.reduce((sum, song) => sum + song.scenes.length, 0),
+    [parsedSongs]
+  );
   const hasTemplate = Boolean(templateData);
   const hasGeneratedJson = Boolean(generatedJson);
 
@@ -127,8 +138,13 @@ export default function HomePage() {
         <div className='hero-frame rounded-[2rem] p-6 sm:p-8 lg:p-10'>
           <div className='grid gap-8 xl:grid-cols-[1.2fr_0.8fr]'>
             <div>
-              <div className='section-kicker'>Worship Production Studio</div>
-              <h1 className='mt-5 max-w-3xl font-display text-xl font-semibold leading-tight text-ink dark:text-slate-50 md:text-4xl'>OBS Scenes Generator</h1>
+              <div className='section-kicker'>
+                <Sparkles size={14} />
+                Worship Production Studio
+              </div>
+              <h1 className='mt-5 max-w-3xl font-display text-4xl font-semibold leading-tight text-ink dark:text-slate-50 md:text-6xl'>
+                Church Lyrics Scene Generator
+              </h1>
               <p className='mt-4 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300'>
                 Turn worship lyrics into polished OBS scene collections with faster parsing, cleaner defaults, and template-friendly export.
               </p>
@@ -242,6 +258,7 @@ export default function HomePage() {
                   onClick={handleGenerate}
                   className='action-primary inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110'
                 >
+                  <Sparkles size={18} />
                   Generate OBS Scenes
                 </button>
                 <button
