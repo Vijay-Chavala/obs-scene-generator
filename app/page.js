@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, Moon, Sparkles, Sun } from "lucide-react";
+import { CheckCircle2, Download, LayoutTemplate, Moon, Music4, Sun } from "lucide-react";
 import FileUploader from "@/components/FileUploader";
 import TemplateUploader from "@/components/TemplateUploader";
 import LyricsPreview from "@/components/LyricsPreview";
@@ -41,24 +41,16 @@ export default function HomePage() {
     document.documentElement.classList.toggle("dark", nextTheme === "dark");
   }, []);
 
-  const totalScenes = useMemo(
-    () => parsedSongs.reduce((sum, song) => sum + song.scenes.length, 0),
-    [parsedSongs]
-  );
+  const totalScenes = useMemo(() => parsedSongs.reduce((sum, song) => sum + song.scenes.length, 0), [parsedSongs]);
+  const hasTemplate = Boolean(templateData);
+  const hasGeneratedJson = Boolean(generatedJson);
 
   const handleLyricsLoaded = (text, name) => {
     const parsed = parseLyrics(text);
     setFileName(name || "");
     setParsedSongs(parsed);
     setGeneratedJson(null);
-    setStatus(
-      parsed.length
-        ? `Parsed ${parsed.length} song(s) and ${parsed.reduce(
-            (sum, song) => sum + song.scenes.length,
-            0
-          )} scene(s).`
-        : "No songs detected. Check the Song-X Name format."
-    );
+    setStatus(parsed.length ? `Parsed ${parsed.length} song(s) and ${parsed.reduce((sum, song) => sum + song.scenes.length, 0)} scene(s).` : "No songs detected. Check the Song-X Name format.");
   };
 
   const handleTemplateLoaded = (text, name) => {
@@ -124,81 +116,144 @@ export default function HomePage() {
   const isDark = theme === "dark";
 
   return (
-    <div className="min-h-screen px-6 py-12">
-      <header className="mx-auto mb-10 max-w-6xl">
-        <div className="flex items-center justify-end">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-xs font-semibold text-slate-700 shadow-card transition hover:border-accent dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200"
-            aria-label="Toggle dark mode"
-          >
-            {isDark ? <Sun size={16} /> : <Moon size={16} />}
-            <span>{isDark ? "Light" : "Dark"}</span>
-          </button>
+    <div className='relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-10 lg:py-10'>
+      <div className='pointer-events-none absolute inset-0 opacity-90'>
+        <div className='absolute left-[-10rem] top-16 h-72 w-72 rounded-full bg-emerald-200/25 blur-3xl dark:bg-emerald-500/10' />
+        <div className='absolute right-[-6rem] top-0 h-80 w-80 rounded-full bg-amber-200/30 blur-3xl dark:bg-cyan-500/10' />
+        <div className='absolute bottom-10 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-sky-200/20 blur-3xl dark:bg-sky-500/10' />
+      </div>
+
+      <header className='relative mx-auto mb-8 max-w-7xl'>
+        <div className='hero-frame rounded-[2rem] p-6 sm:p-8 lg:p-10'>
+          <div className='grid gap-8 xl:grid-cols-[1.2fr_0.8fr]'>
+            <div>
+              <div className='section-kicker'>Worship Production Studio</div>
+              <h1 className='mt-5 max-w-3xl font-display text-xl font-semibold leading-tight text-ink dark:text-slate-50 md:text-4xl'>OBS Scenes Generator</h1>
+              <p className='mt-4 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300'>
+                Turn worship lyrics into polished OBS scene collections with faster parsing, cleaner defaults, and template-friendly export.
+              </p>
+              <div className='mt-6 flex flex-wrap gap-3'>
+                <div className='section-kicker border-0 bg-emerald-100/80 text-emerald-800 dark:bg-emerald-500/12 dark:text-emerald-200'>TXT parsing</div>
+                <div className='section-kicker border-0 bg-cyan-100/80 text-cyan-800 dark:bg-cyan-500/12 dark:text-cyan-200'>OBS JSON export</div>
+                <div className='section-kicker border-0 bg-amber-100/80 text-amber-800 dark:bg-amber-500/12 dark:text-amber-200'>Template cloning</div>
+              </div>
+            </div>
+
+            <div className='space-y-4'>
+              <div className='flex justify-start xl:justify-end'>
+                <button
+                  type='button'
+                  onClick={toggleTheme}
+                  className='action-secondary inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-accent dark:text-slate-200'
+                  aria-label='Toggle dark mode'
+                >
+                  {isDark ? <Sun size={16} /> : <Moon size={16} />}
+                  <span>{isDark ? "Light mode" : "Dark mode"}</span>
+                </button>
+              </div>
+
+              <div className='rounded-[1.75rem] panel-shell p-5 sm:p-6'>
+                <div className='flex items-center justify-between gap-3'>
+                  <div>
+                    <div className='text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400'>Workspace Summary</div>
+                    <div className='mt-1 text-lg font-semibold text-ink dark:text-slate-100'>Ready for Sunday service</div>
+                  </div>
+                  <div className='rounded-2xl bg-emerald-100/80 p-3 text-emerald-700 dark:bg-emerald-500/12 dark:text-emerald-200'>
+                    <CheckCircle2 size={18} />
+                  </div>
+                </div>
+
+                <div className='mt-5 grid grid-cols-2 gap-3'>
+                  <div className='metric-tile rounded-2xl p-4'>
+                    <div className='text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400'>Songs</div>
+                    <div className='mt-2 text-3xl font-semibold text-ink dark:text-slate-50'>{parsedSongs.length}</div>
+                  </div>
+                  <div className='metric-tile rounded-2xl p-4'>
+                    <div className='text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400'>Scenes</div>
+                    <div className='mt-2 text-3xl font-semibold text-ink dark:text-slate-50'>{totalScenes}</div>
+                  </div>
+                  <div className='metric-tile rounded-2xl p-4'>
+                    <div className='inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400'>
+                      <LayoutTemplate size={14} />
+                      Template
+                    </div>
+                    <div className='mt-2 text-sm font-semibold text-ink dark:text-slate-100'>{hasTemplate ? "Loaded" : "Default"}</div>
+                  </div>
+                  <div className='metric-tile rounded-2xl p-4'>
+                    <div className='inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400'>
+                      <Music4 size={14} />
+                      Export
+                    </div>
+                    <div className='mt-2 text-sm font-semibold text-ink dark:text-slate-100'>{hasGeneratedJson ? "Ready" : "Pending"}</div>
+                  </div>
+                </div>
+
+                <div className='status-banner mt-5 rounded-2xl px-4 py-3 text-sm text-slate-700 dark:text-slate-200'>
+                  {status || "Upload lyrics to parse songs and prepare your OBS scene collection."}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <h1 className="mt-4 font-display text-4xl font-semibold text-ink dark:text-slate-100 md:text-5xl">
-          Church Lyrics Scene Generator
-        </h1>
-        <p className="mt-3 max-w-2xl text-lg text-slate-600 dark:text-slate-300">
-          Automatically convert worship lyrics into OBS scenes with clean text styling
-          and import-ready JSON.
-        </p>
       </header>
 
-      <main className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-2">
-        <section className="space-y-6">
-          <div className="rounded-3xl card-surface p-6 shadow-card">
+      <main className='relative mx-auto grid max-w-7xl gap-6 xl:grid-cols-[1.05fr_0.95fr]'>
+        <section className='space-y-6'>
+          <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
             <FileUploader fileName={fileName} onTextLoaded={handleLyricsLoaded} />
           </div>
-          <div className="rounded-3xl card-surface p-6 shadow-card">
-            <TemplateUploader
-              templateName={templateName}
-              onTemplateLoaded={handleTemplateLoaded}
-            />
+          <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
+            <TemplateUploader templateName={templateName} onTemplateLoaded={handleTemplateLoaded} />
           </div>
-          <div className="rounded-3xl card-surface p-6 shadow-card">
+          <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
             <LyricsPreview parsedSongs={parsedSongs} />
           </div>
         </section>
 
-        <section className="space-y-6">
-          <div className="rounded-3xl card-surface p-6 shadow-card">
+        <section className='space-y-6'>
+          <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
             <SettingsPanel settings={settings} onChange={handleSettingsChange} />
           </div>
-          <div className="rounded-3xl card-surface p-6 shadow-card">
-            <div className="flex flex-col gap-4">
+          <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
+            <div className='flex flex-col gap-5'>
               <div>
-                <h2 className="text-xl font-semibold text-ink dark:text-slate-100">
-                  Scene Generation
-                </h2>
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                  {parsedSongs.length
-                    ? `${parsedSongs.length} song(s) detected, ${totalScenes} scene(s) ready.`
-                    : "Upload a lyrics file to begin."}
+                <div className='section-kicker'>
+                  <Download size={14} />
+                  Export Studio
+                </div>
+                <h2 className='mt-4 text-2xl font-semibold text-ink dark:text-slate-100'>Scene Generation</h2>
+                <p className='mt-2 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300'>
+                  {parsedSongs.length ? `${parsedSongs.length} song(s) detected and ${totalScenes} scene(s) are queued for export.` : "Upload a lyrics file to begin."}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className='grid gap-3 sm:grid-cols-2'>
+                <div className='metric-tile rounded-2xl p-4'>
+                  <div className='text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400'>Output file</div>
+                  <div className='mt-2 text-sm font-semibold text-ink dark:text-slate-100'>church-lyrics-scenes.json</div>
+                </div>
+                <div className='metric-tile rounded-2xl p-4'>
+                  <div className='text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400'>Active template</div>
+                  <div className='mt-2 truncate text-sm font-semibold text-ink dark:text-slate-100'>{templateName || "Built-in default template"}</div>
+                </div>
+              </div>
+              <div className='flex flex-wrap gap-3'>
                 <button
+                  type='button'
                   onClick={handleGenerate}
-                  className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+                  className='action-primary inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110'
                 >
-                  <Sparkles size={18} />
                   Generate OBS Scenes
                 </button>
                 <button
+                  type='button'
                   onClick={handleDownload}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-accent dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  disabled={!hasGeneratedJson}
+                  className='action-secondary inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-200'
                 >
                   <Download size={18} />
                   Download Scene Collection
                 </button>
               </div>
-              {status ? (
-                <div className="rounded-2xl bg-parchment px-4 py-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                  {status}
-                </div>
-              ) : null}
             </div>
           </div>
         </section>
