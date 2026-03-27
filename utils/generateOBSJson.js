@@ -848,9 +848,10 @@ function getRelativeBounds(bounds, canvas) {
 }
 
 function normalizeTitleForSceneName(title) {
-  const safe = String(title || "Song").trim();
+  const safe = String(title || "Song").trim().normalize("NFC");
   if (!safe) return "Song";
-  const compact = safe.replace(/[^\p{L}\p{N}]+/gu, "");
+  // Preserve combining marks so scripts like Telugu keep their vowel signs intact.
+  const compact = safe.replace(/[^\p{L}\p{M}\p{N}]+/gu, "");
   return compact || "Song";
 }
 
