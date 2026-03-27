@@ -147,7 +147,7 @@ export default function HomePage() {
   const isDark = theme === "dark";
 
   return (
-    <div className='relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-10 lg:py-10'>
+    <div className='relative min-h-screen overflow-hidden  py-6 sm:px-6 lg:px-10 lg:py-10'>
       <div className='pointer-events-none absolute inset-0 opacity-90'>
         <div className='absolute left-[-10rem] top-16 h-72 w-72 rounded-full bg-emerald-200/25 blur-3xl dark:bg-emerald-500/10' />
         <div className='absolute right-[-6rem] top-0 h-80 w-80 rounded-full bg-amber-200/30 blur-3xl dark:bg-cyan-500/10' />
