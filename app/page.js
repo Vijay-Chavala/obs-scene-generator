@@ -37,13 +37,12 @@ export default function HomePage() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [generatedJson, setGeneratedJson] = useState(null);
   const [status, setStatus] = useState("");
-  const [theme, setTheme] = useState("light");
+  const [theme, setTheme] = useState("dark");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem("theme");
-    const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-    const nextTheme = stored || (prefersDark ? "dark" : "light");
+    const nextTheme = stored === "light" || stored === "dark" ? stored : "dark";
     setTheme(nextTheme);
     document.documentElement.classList.toggle("dark", nextTheme === "dark");
   }, []);
@@ -154,7 +153,7 @@ export default function HomePage() {
         <div className='absolute bottom-10 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-sky-200/20 blur-3xl dark:bg-sky-500/10' />
       </div>
 
-      <header className='relative mx-auto mb-8 max-w-7xl'>
+      <header className='relative mx-auto mb-8 max-w-[88rem]'>
         <div className='hero-frame rounded-[2rem] p-6 sm:p-8 lg:p-10'>
           <div className='pointer-events-auto absolute top-6 right-6 z-10 sm:top-8 sm:right-8 xl:hidden'>
             <button
@@ -169,7 +168,14 @@ export default function HomePage() {
           </div>
           <div className='grid gap-8 xl:grid-cols-[1.2fr_0.8fr]'>
             <div>
-              <div className='section-kicker'>Worship Production Studio</div>
+              <div className='flex items-center gap-3'>
+                <img
+                  src='/church-lyrics-generator.png'
+                  alt='Church Lyrics Scene Generator logo'
+                  className='h-11 w-11 rounded-2xl border border-white/20 bg-white/10 p-1.5 shadow-[0_18px_55px_rgba(15,23,42,0.18)] backdrop-blur dark:border-slate-700/50 dark:bg-slate-950/25'
+                />
+                <div className='section-kicker'>Worship Production Studio</div>
+              </div>
               <h1 className='mt-4 max-w-3xl font-display text-3xl font-semibold leading-tight text-ink dark:text-slate-50 md:text-4xl'>Church Lyrics Scene Generator</h1>
               <p className='mt-4 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300'>
                 Turn worship lyrics into polished OBS scene collections with faster parsing, cleaner defaults, and template-friendly export.
@@ -266,7 +272,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className='relative mx-auto grid max-w-7xl gap-6 xl:grid-cols-[1.05fr_0.95fr]'>
+      <main className='relative mx-auto grid max-w-[88rem] gap-6 xl:grid-cols-[1.05fr_0.95fr]'>
         <section className='space-y-6'>
           <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
             <FileUploader fileName={fileName} onTextLoaded={handleLyricsLoaded} />
