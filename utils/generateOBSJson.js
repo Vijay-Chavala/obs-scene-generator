@@ -238,7 +238,7 @@ function generateSceneSources(template, parsedSongs, settings, canvas, songBackg
     template.current_program_scene = sceneOrder[0].name;
     template.current_preview_scene = sceneOrder[0].name;
   }
-  template.name = template.name || "Church Lyrics Scenes";
+  template.name = getSceneCollectionName();
   return template;
 }
 
@@ -370,7 +370,7 @@ function generateLegacyScenes(template, parsedSongs, settings, canvas, songBackg
     template.current_preview_scene = scenes[0].name;
     template.current_scene = scenes[0].name;
   }
-  template.name = template.name || "Church Lyrics Scenes";
+  template.name = getSceneCollectionName();
   return template;
 }
 
@@ -966,6 +966,18 @@ function getCanvasSize(template, settings) {
     width: Number.isFinite(width) && width > 0 ? width : DEFAULT_TRANSFORM.bounds.x,
     height: Number.isFinite(height) && height > 0 ? height : DEFAULT_TRANSFORM.bounds.y,
   };
+}
+
+function getSceneCollectionName(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours24 = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const amPm = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = String(((hours24 + 11) % 12) + 1).padStart(2, "0");
+
+  return `Worship Lyrics ${year}-${month}-${day} ${hours12}-${minutes} ${amPm}`;
 }
 
 function normalizeBounds(bounds, fallback) {
