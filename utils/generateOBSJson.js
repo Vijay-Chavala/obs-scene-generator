@@ -889,10 +889,25 @@ function verticalAlignmentToObs(alignment, fallback = 0) {
 
 function hexToObsColor(hex) {
   if (!hex || typeof hex !== "string") return DEFAULT_TEXT_SETTINGS.color;
-  const sanitized = hex.replace("#", "");
-  if (sanitized.length !== 6) return DEFAULT_TEXT_SETTINGS.color;
-  const rgb = parseInt(sanitized, 16);
-  return (0xff << 24) | rgb;
+  const sanitized = hex.replace("#", "").trim();
+  const normalized =
+    sanitized.length === 3
+      ? sanitized
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : sanitized;
+
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+    return DEFAULT_TEXT_SETTINGS.color;
+  }
+
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+
+  // OBS text_gdiplus stores colors as AABBGGRR, not AARRGGBB.
+  return (((0xff << 24) >>> 0) | (blue << 16) | (green << 8) | red) >>> 0;
 }
 
 function getFittedFontSize({

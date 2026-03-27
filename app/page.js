@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, LayoutTemplate, Moon, Music4, Sun } from "lucide-react";
+import { CheckCircle2, Download, LayoutTemplate, Moon, Music4, RotateCcw, Sun } from "lucide-react";
 import FileUploader from "@/components/FileUploader";
 import TemplateUploader from "@/components/TemplateUploader";
 import LyricsPreview from "@/components/LyricsPreview";
@@ -34,10 +34,11 @@ export default function HomePage() {
   const [templateData, setTemplateData] = useState(null);
   const [parsedSongs, setParsedSongs] = useState([]);
   const [songBackgrounds, setSongBackgrounds] = useState([]);
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState({ ...DEFAULT_SETTINGS });
   const [generatedJson, setGeneratedJson] = useState(null);
   const [status, setStatus] = useState("");
   const [theme, setTheme] = useState("dark");
+  const [uploadResetKey, setUploadResetKey] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -120,18 +121,42 @@ export default function HomePage() {
       setStatus("Generate the scene collection first.");
       return;
     }
+
+    const now = new Date();
+    const parts = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+      String(now.getHours()).padStart(2, "0"),
+      String(now.getMinutes()).padStart(2, "0"),
+      String(now.getSeconds()).padStart(2, "0"),
+    ];
+    const downloadFileName = `church-lyrics-scenes-${parts[0]}-${parts[1]}-${parts[2]}-${parts[3]}-${parts[4]}-${parts[5]}.json`;
+
     const blob = new Blob([JSON.stringify(generatedJson, null, 2)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "church-lyrics-scenes.json";
+    link.download = downloadFileName;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    setStatus("Download started.");
+    setStatus(`Download started: ${downloadFileName}`);
+  };
+
+  const handleReset = () => {
+    setFileName("");
+    setTemplateName("");
+    setTemplateData(null);
+    setParsedSongs([]);
+    setSongBackgrounds([]);
+    setSettings({ ...DEFAULT_SETTINGS });
+    setGeneratedJson(null);
+    setStatus("Workspace reset. Upload lyrics to start again.");
+    setUploadResetKey((prev) => prev + 1);
   };
 
   const toggleTheme = () => {
@@ -275,10 +300,10 @@ export default function HomePage() {
       <main className='relative mx-auto grid max-w-[88rem] gap-6 xl:grid-cols-[1.05fr_0.95fr]'>
         <section className='space-y-6'>
           <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
-            <FileUploader fileName={fileName} onTextLoaded={handleLyricsLoaded} />
+            <FileUploader key={`lyrics-${uploadResetKey}`} fileName={fileName} onTextLoaded={handleLyricsLoaded} />
           </div>
           <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
-            <TemplateUploader templateName={templateName} onTemplateLoaded={handleTemplateLoaded} />
+            <TemplateUploader key={`template-${uploadResetKey}`} templateName={templateName} onTemplateLoaded={handleTemplateLoaded} />
           </div>
           <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
             <LyricsPreview parsedSongs={parsedSongs} />
@@ -330,6 +355,14 @@ export default function HomePage() {
                 >
                   <Download size={18} />
                   Download Scene Collection
+                </button>
+                <button
+                  type='button'
+                  onClick={handleReset}
+                  className='action-secondary inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-accent dark:text-slate-200'
+                >
+                  <RotateCcw size={18} />
+                  Reset
                 </button>
               </div>
             </div>
