@@ -1,15 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  CheckCircle2,
-  Download,
-  LayoutTemplate,
-  Moon,
-  Music4,
-  Sparkles,
-  Sun,
-} from "lucide-react";
+import { CheckCircle2, Download, LayoutTemplate, Moon, Music4, Sun } from "lucide-react";
 import FileUploader from "@/components/FileUploader";
 import TemplateUploader from "@/components/TemplateUploader";
 import LyricsPreview from "@/components/LyricsPreview";
@@ -56,20 +48,8 @@ export default function HomePage() {
     document.documentElement.classList.toggle("dark", nextTheme === "dark");
   }, []);
 
-  const totalScenes = useMemo(
-    () => parsedSongs.reduce((sum, song) => sum + song.scenes.length, 0),
-    [parsedSongs]
-  );
-  const configuredBackgrounds = useMemo(
-    () =>
-      songBackgrounds.filter(
-        (background) =>
-          background?.type &&
-          background.type !== "none" &&
-          background.path?.trim()
-      ).length,
-    [songBackgrounds]
-  );
+  const totalScenes = useMemo(() => parsedSongs.reduce((sum, song) => sum + song.scenes.length, 0), [parsedSongs]);
+  const configuredBackgrounds = useMemo(() => songBackgrounds.filter((background) => background?.type && background.type !== "none" && background.path?.trim()).length, [songBackgrounds]);
   const hasTemplate = Boolean(templateData);
   const hasGeneratedJson = Boolean(generatedJson);
 
@@ -111,7 +91,7 @@ export default function HomePage() {
           return { ...EMPTY_SONG_BACKGROUND };
         }
         return next;
-      })
+      }),
     );
     setGeneratedJson(null);
   };
@@ -121,25 +101,13 @@ export default function HomePage() {
       setStatus("Upload lyrics before generating scenes.");
       return;
     }
-    const invalidBackgroundIndex = songBackgrounds.findIndex(
-      (background) =>
-        background?.type &&
-        background.type !== "none" &&
-        !background.path?.trim()
-    );
+    const invalidBackgroundIndex = songBackgrounds.findIndex((background) => background?.type && background.type !== "none" && !background.path?.trim());
     if (invalidBackgroundIndex >= 0) {
-      setStatus(
-        `Add a valid media path for ${parsedSongs[invalidBackgroundIndex]?.songTitle || "the selected song"} or set its background to None.`
-      );
+      setStatus(`Add a valid media path for ${parsedSongs[invalidBackgroundIndex]?.songTitle || "the selected song"} or set its background to None.`);
       return;
     }
     try {
-      const obsJson = generateOBSJson(
-        parsedSongs,
-        settings,
-        templateData,
-        songBackgrounds
-      );
+      const obsJson = generateOBSJson(parsedSongs, settings, templateData, songBackgrounds);
       setGeneratedJson(obsJson);
       setStatus("OBS scene collection generated. Ready to download.");
     } catch (error) {
@@ -188,15 +156,21 @@ export default function HomePage() {
 
       <header className='relative mx-auto mb-8 max-w-7xl'>
         <div className='hero-frame rounded-[2rem] p-6 sm:p-8 lg:p-10'>
+          <div className='pointer-events-auto absolute top-6 right-6 z-10 sm:top-8 sm:right-8 xl:hidden'>
+            <button
+              type='button'
+              onClick={toggleTheme}
+              className='action-secondary inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-accent dark:text-slate-200'
+              aria-label='Toggle dark mode'
+            >
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
+              <span>{isDark ? "Light mode" : "Dark mode"}</span>
+            </button>
+          </div>
           <div className='grid gap-8 xl:grid-cols-[1.2fr_0.8fr]'>
             <div>
-              <div className='section-kicker'>
-                <Sparkles size={14} />
-                Worship Production Studio
-              </div>
-              <h1 className='mt-5 max-w-3xl font-display text-4xl font-semibold leading-tight text-ink dark:text-slate-50 md:text-6xl'>
-                Church Lyrics Scene Generator
-              </h1>
+              <div className='section-kicker'>Worship Production Studio</div>
+              <h1 className='mt-4 max-w-3xl font-display text-3xl font-semibold leading-tight text-ink dark:text-slate-50 md:text-4xl'>Church Lyrics Scene Generator</h1>
               <p className='mt-4 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300'>
                 Turn worship lyrics into polished OBS scene collections with faster parsing, cleaner defaults, and template-friendly export.
               </p>
@@ -205,10 +179,37 @@ export default function HomePage() {
                 <div className='section-kicker border-0 bg-cyan-100/80 text-cyan-800 dark:bg-cyan-500/12 dark:text-cyan-200'>OBS JSON export</div>
                 <div className='section-kicker border-0 bg-amber-100/80 text-amber-800 dark:bg-amber-500/12 dark:text-amber-200'>Template cloning</div>
               </div>
+
+              <div className='mt-7 rounded-[1.5rem] panel-shell p-5'>
+                <div className='flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400'>
+                  <CheckCircle2 size={14} />
+                  Quick Start
+                </div>
+                <ol className='mt-4 space-y-3 text-sm text-slate-700 dark:text-slate-200'>
+                  <li className='flex items-center gap-3'>
+                    <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200/60 bg-slate-100/70 text-slate-800 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-100'>
+                      1
+                    </span>
+                    Upload your lyrics (TXT)
+                  </li>
+                  <li className='flex items-center gap-3'>
+                    <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200/60 bg-slate-100/70 text-slate-800 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-100'>
+                      2
+                    </span>
+                    Review songs + select backgrounds
+                  </li>
+                  <li className='flex items-center gap-3'>
+                    <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200/60 bg-slate-100/70 text-slate-800 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-100'>
+                      3
+                    </span>
+                    Generate + export scene collection
+                  </li>
+                </ol>
+              </div>
             </div>
 
             <div className='space-y-4'>
-              <div className='flex justify-start xl:justify-end'>
+              <div className='hidden xl:flex justify-end'>
                 <button
                   type='button'
                   onClick={toggleTheme}
@@ -252,9 +253,7 @@ export default function HomePage() {
                       <Music4 size={14} />
                       Backgrounds
                     </div>
-                    <div className='mt-2 text-sm font-semibold text-ink dark:text-slate-100'>
-                      {configuredBackgrounds} configured
-                    </div>
+                    <div className='mt-2 text-sm font-semibold text-ink dark:text-slate-100'>{configuredBackgrounds} configured</div>
                   </div>
                 </div>
 
@@ -279,11 +278,7 @@ export default function HomePage() {
             <LyricsPreview parsedSongs={parsedSongs} />
           </div>
           <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
-            <SongBackgrounds
-              parsedSongs={parsedSongs}
-              backgrounds={songBackgrounds}
-              onChange={handleSongBackgroundChange}
-            />
+            <SongBackgrounds parsedSongs={parsedSongs} backgrounds={songBackgrounds} onChange={handleSongBackgroundChange} />
           </div>
         </section>
 
@@ -319,7 +314,6 @@ export default function HomePage() {
                   onClick={handleGenerate}
                   className='action-primary inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110'
                 >
-                  <Sparkles size={18} />
                   Generate OBS Scenes
                 </button>
                 <button

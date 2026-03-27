@@ -672,7 +672,10 @@ function createDefaultLegacyBackgroundItem(type, canvas) {
 }
 
 function normalizeObsMediaPath(path) {
-  return String(path || "").trim().replace(/\\/g, "/");
+  return String(path || "")
+    .trim()
+    .replace(/^["'“”]+|["'“”]+$/g, "")
+    .replace(/\\/g, "/");
 }
 
 function buildTextSettings(text, settings, templateSource) {
