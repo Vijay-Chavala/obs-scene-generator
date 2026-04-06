@@ -8,7 +8,9 @@ const DEFAULT_TEXT_SETTINGS = {
     style: "Bold",
   },
   color: 4294967295,
-  outline: false,
+  outline: true,
+  outline_color: 4278190250,
+  outline_size: 19,
   align: "center",
   valign: "center",
   extents: false,
@@ -684,11 +686,16 @@ function buildTextSettings(text, settings, templateSource) {
       ? templateSource.settings
       : DEFAULT_TEXT_SETTINGS;
   const obsColor = hexToObsColor(settings.fontColor);
+  const obsOutlineColor = hexToObsColor(settings.outlineColor);
   const alignValue = alignmentToObs(settings.alignment, baseSettings.align);
   const valignValue =
     typeof baseSettings.valign !== "undefined"
       ? baseSettings.valign
       : verticalAlignmentToObs("center", DEFAULT_TEXT_SETTINGS.valign);
+  const baseFontFlags = Number.isFinite(Number(baseSettings.font?.flags))
+    ? Number(baseSettings.font.flags)
+    : 0;
+  const fontFlags = settings.bold ? (baseFontFlags | 1) : baseFontFlags & ~1;
   const baseFontSize = settings.fontSize || baseSettings.font?.size || DEFAULT_TEXT_SETTINGS.font.size;
   const textBoxWidth = settings.textBoxWidth || baseSettings.extents_cx || DEFAULT_TEXT_SETTINGS.extents_cx;
   const textBoxHeight = settings.textBoxHeight || baseSettings.extents_cy || DEFAULT_TEXT_SETTINGS.extents_cy;
@@ -718,9 +725,27 @@ function buildTextSettings(text, settings, templateSource) {
       face: settings.fontFamily || DEFAULT_TEXT_SETTINGS.font.face,
       size: fittedFontSize,
       style: settings.bold ? "Bold" : "Regular",
+      flags: fontFlags,
     },
     color: obsColor,
-    outline: false,
+    outline:
+      typeof settings.outline === "boolean"
+        ? settings.outline
+        : typeof baseSettings.outline === "boolean"
+          ? baseSettings.outline
+          : DEFAULT_TEXT_SETTINGS.outline,
+    outline_color:
+      settings.outlineColor
+        ? obsOutlineColor
+        : typeof baseSettings.outline_color === "number"
+          ? baseSettings.outline_color
+          : DEFAULT_TEXT_SETTINGS.outline_color,
+    outline_size:
+      Number.isFinite(Number(settings.outlineSize)) && Number(settings.outlineSize) >= 0
+        ? Number(settings.outlineSize)
+        : Number.isFinite(Number(baseSettings.outline_size))
+          ? Number(baseSettings.outline_size)
+          : DEFAULT_TEXT_SETTINGS.outline_size,
     align: alignValue,
     valign: valignValue,
     extents: extentsEnabled,

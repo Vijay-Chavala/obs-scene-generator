@@ -28,7 +28,8 @@
         "font": {
           "face": "Mandali",
           "size": 120,
-          "style": "Bold"
+          "style": "Bold",
+          "flags": 1
         },
         "align": "center",
         "color": -1,

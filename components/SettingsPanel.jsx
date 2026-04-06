@@ -116,6 +116,45 @@ export default function SettingsPanel({ settings, onChange }) {
               </Switch.Root>
             </div>
           </div>
+          <div className="block text-sm text-slate-600 dark:text-slate-300">
+            Outline
+            <div className="panel-shell mt-2 flex min-h-[56px] items-center justify-between rounded-2xl px-4">
+              <div>
+                <div className="font-medium text-slate-700 dark:text-slate-100">
+                  Enable text outline
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  Useful when lyrics need stronger separation from the background
+                </div>
+              </div>
+              <Switch.Root
+                checked={Boolean(settings.outline)}
+                onCheckedChange={(value) => onChange({ outline: value })}
+                className="relative h-7 w-12 rounded-full bg-slate-300 transition data-[state=checked]:bg-accent dark:bg-slate-700"
+              >
+                <Switch.Thumb className="block h-6 w-6 translate-x-0.5 rounded-full bg-white transition data-[state=checked]:translate-x-[1.45rem] dark:bg-slate-100" />
+              </Switch.Root>
+            </div>
+          </div>
+          <label className="block text-sm text-slate-600 dark:text-slate-300">
+            Outline Size
+            <input
+              type="number"
+              min={0}
+              value={settings.outlineSize}
+              onChange={update("outlineSize")}
+              className={fieldClass}
+            />
+          </label>
+          <label className="block text-sm text-slate-600 dark:text-slate-300">
+            Outline Color
+            <input
+              type="color"
+              value={settings.outlineColor}
+              onChange={update("outlineColor")}
+              className="input-shell mt-2 h-14 w-full rounded-2xl px-2 dark:text-slate-100"
+            />
+          </label>
         </div>
       </div>
 
