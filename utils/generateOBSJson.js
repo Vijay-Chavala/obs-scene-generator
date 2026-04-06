@@ -1,4 +1,5 @@
 import obsTemplate from "@/templates/obsTemplate.json";
+import { mergeSongTextSettings } from "@/lib/textSettings";
 
 const DEFAULT_TEXT_SETTINGS = {
   text: "",
@@ -8,7 +9,7 @@ const DEFAULT_TEXT_SETTINGS = {
     style: "Bold",
   },
   color: 4294967295,
-  outline: true,
+  outline: false,
   outline_color: 4278190250,
   outline_size: 19,
   align: "center",
@@ -56,18 +57,41 @@ const DEFAULT_VIDEO_SOURCE = {
   private_settings: {},
 };
 
-export function generateOBSJson(parsedSongs, settings, templateOverride, songBackgrounds = []) {
+export function generateOBSJson(
+  parsedSongs,
+  settings,
+  templateOverride,
+  songBackgrounds = [],
+  songFontSettings = [],
+  textSettingsMode = "global"
+) {
   const template = deepClone(templateOverride || obsTemplate);
   const canvas = getCanvasSize(template, settings);
 
   if (Array.isArray(template.scenes) && template.scenes.length) {
-    return generateLegacyScenes(template, parsedSongs, settings, canvas, songBackgrounds);
+    return generateLegacyScenes(
+      template,
+      parsedSongs,
+      settings,
+      canvas,
+      songBackgrounds,
+      songFontSettings,
+      textSettingsMode
+    );
   }
 
   if (Array.isArray(template.sources)) {
     const hasSceneSources = template.sources.some(isSceneSource);
     if (hasSceneSources) {
-      return generateSceneSources(template, parsedSongs, settings, canvas, songBackgrounds);
+      return generateSceneSources(
+        template,
+        parsedSongs,
+        settings,
+        canvas,
+        songBackgrounds,
+        songFontSettings,
+        textSettingsMode
+      );
     }
   }
 
@@ -96,11 +120,21 @@ export function generateOBSJson(parsedSongs, settings, templateOverride, songBac
     parsedSongs,
     settings,
     canvas,
-    songBackgrounds
+    songBackgrounds,
+    songFontSettings,
+    textSettingsMode
   );
 }
 
-function generateSceneSources(template, parsedSongs, settings, canvas, songBackgrounds) {
+function generateSceneSources(
+  template,
+  parsedSongs,
+  settings,
+  canvas,
+  songBackgrounds,
+  songFontSettings,
+  textSettingsMode
+) {
   const sources = Array.isArray(template.sources) ? template.sources : [];
   const sourceByUuid = new Map(sources.map((source) => [source.uuid, source]));
   const sceneSources = sources.filter(isSceneSource);
@@ -125,6 +159,11 @@ function generateSceneSources(template, parsedSongs, settings, canvas, songBackg
 
   parsedSongs.forEach((song, songIndex) => {
     const safeTitle = getUniqueSongPrefix(song.songTitle, titleCounts);
+    const songSettings = mergeSongTextSettings(
+      settings,
+      songFontSettings?.[songIndex],
+      textSettingsMode
+    );
     const songBackground = buildSongBackgroundAsset({
       song,
       songIndex,
@@ -144,7 +183,7 @@ function generateSceneSources(template, parsedSongs, settings, canvas, songBackg
       const sourceUuid = getUuid();
       const sceneUuid = getUuid();
 
-      const textSettings = buildTextSettings(sceneText, settings, textSourceTemplate);
+      const textSettings = buildTextSettings(sceneText, songSettings, textSourceTemplate);
 
       const textSource = deepClone(textSourceTemplate || {});
       textSource.name = sourceName;
@@ -206,7 +245,7 @@ function generateSceneSources(template, parsedSongs, settings, canvas, songBackg
               visible: true,
               locked: false,
             },
-            settings,
+            songSettings,
             canvas
           );
           updatedItems.push(updatedItem);
@@ -244,7 +283,15 @@ function generateSceneSources(template, parsedSongs, settings, canvas, songBackg
   return template;
 }
 
-function generateLegacyScenes(template, parsedSongs, settings, canvas, songBackgrounds) {
+function generateLegacyScenes(
+  template,
+  parsedSongs,
+  settings,
+  canvas,
+  songBackgrounds,
+  songFontSettings,
+  textSettingsMode
+) {
   const templateScene = template.scenes?.[0] || { name: "Template Scene", sources: [] };
   const templateSources = Array.isArray(template.sources) ? template.sources : [];
   const hasConfiguredBackgrounds = hasSongBackgroundAssignments(songBackgrounds);
@@ -287,6 +334,11 @@ function generateLegacyScenes(template, parsedSongs, settings, canvas, songBackg
 
   parsedSongs.forEach((song, songIndex) => {
     const safeTitle = getUniqueSongPrefix(song.songTitle, titleCounts);
+    const songSettings = mergeSongTextSettings(
+      settings,
+      songFontSettings?.[songIndex],
+      textSettingsMode
+    );
     const songBackground = buildSongBackgroundAsset({
       song,
       songIndex,
@@ -306,8 +358,8 @@ function generateLegacyScenes(template, parsedSongs, settings, canvas, songBackg
       const sceneName = `${safeTitle}-${sceneIndex + 1}`;
       const sourceName = `lyrics-source-${sourceCount}`;
 
-      const textSettings = buildTextSettings(sceneText, settings, textSourceTemplate);
-      const transformSettings = buildTransformSettings(settings, textItemTemplate, canvas);
+      const textSettings = buildTextSettings(sceneText, songSettings, textSourceTemplate);
+      const transformSettings = buildTransformSettings(songSettings, textItemTemplate, canvas);
 
       if (textSourceTemplate) {
         const source = deepClone(textSourceTemplate);

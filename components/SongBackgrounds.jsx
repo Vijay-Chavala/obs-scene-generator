@@ -1,6 +1,7 @@
 "use client";
 
-import { Film, Image as ImageIcon, MonitorPlay, Trash2 } from "lucide-react";
+import { Film, Image as ImageIcon, MonitorPlay, SlidersHorizontal, Trash2, Type } from "lucide-react";
+import FontSettingsFields from "@/components/FontSettingsFields";
 
 const BACKGROUND_TYPES = [
   { value: "none", label: "None" },
@@ -8,32 +9,46 @@ const BACKGROUND_TYPES = [
   { value: "video", label: "Video" },
 ];
 
-export default function SongBackgrounds({ parsedSongs, backgrounds, onChange }) {
+export default function SongBackgrounds({
+  parsedSongs,
+  backgrounds,
+  onChange,
+  textSettingsMode,
+  songFontSettings,
+  onSongFontSettingsChange,
+}) {
   const configuredCount = backgrounds.filter(
     (background) =>
       background?.type &&
       background.type !== "none" &&
       background.path?.trim()
   ).length;
+  const isSpecificMode = textSettingsMode === "specific";
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="section-kicker">
-            <MonitorPlay size={14} />
-            Song Backgrounds
+            <SlidersHorizontal size={14} />
+            Song Overrides
           </div>
           <h2 className="mt-4 text-2xl font-semibold text-ink dark:text-slate-100">
-            Optional Media Per Song
+            Per-song Media and Font Settings
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300">
-            Assign a dedicated image or video background to each parsed song. The
-            selected media will be reused across every scene inside that song.
+            Assign a dedicated image or video background to each parsed song. When
+            specific font mode is enabled, each song can also use its own font
+            styling while global layout settings remain intact.
           </p>
         </div>
-        <div className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-          {configuredCount} configured
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+            {configuredCount} backgrounds
+          </div>
+          <div className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+            {isSpecificMode ? "Specific fonts enabled" : "Global fonts enabled"}
+          </div>
         </div>
       </div>
 
@@ -49,11 +64,18 @@ export default function SongBackgrounds({ parsedSongs, backgrounds, onChange }) 
               C:/Media/AmazingGrace.png
             </code>
             . Leave any song as <strong>None</strong> if you want lyrics-only scenes.
+            {isSpecificMode ? (
+              <>
+                {" "}
+                Song cards below now also include font controls for per-song styling.
+              </>
+            ) : null}
           </div>
 
           <div className="space-y-3">
             {parsedSongs.map((song, index) => {
               const background = backgrounds[index] || { type: "none", path: "" };
+              const fontSettings = songFontSettings[index];
               const isActive = background.type !== "none";
 
               return (
@@ -76,6 +98,13 @@ export default function SongBackgrounds({ parsedSongs, backgrounds, onChange }) 
                         : background.type === "video"
                           ? "Video background"
                           : "No background"}
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                      <MonitorPlay size={14} />
+                      Background Media
                     </div>
                   </div>
 
@@ -142,6 +171,21 @@ export default function SongBackgrounds({ parsedSongs, backgrounds, onChange }) 
                     This background will be placed behind lyrics for all{" "}
                     {song.scenes.length} scene(s) in this song.
                   </div>
+
+                  {isSpecificMode && fontSettings ? (
+                    <div className="setting-card mt-5 rounded-[1.35rem] p-4">
+                      <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                        <Type size={14} />
+                        Font Settings
+                      </div>
+                      <FontSettingsFields
+                        settings={fontSettings}
+                        onChange={(updates) => onSongFontSettingsChange(index, updates)}
+                        dense
+                        className="mt-4"
+                      />
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
@@ -157,7 +201,8 @@ export default function SongBackgrounds({ parsedSongs, backgrounds, onChange }) 
           </div>
           <div className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
             Once lyrics are parsed, you will be able to assign an optional image or
-            video background to each song here.
+            video background to each song here, along with per-song font settings
+            when specific mode is enabled.
           </div>
         </div>
       )}

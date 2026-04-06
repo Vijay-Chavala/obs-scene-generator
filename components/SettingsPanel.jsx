@@ -1,9 +1,15 @@
 "use client";
 
 import * as Switch from "@radix-ui/react-switch";
-import { LayoutGrid, Type } from "lucide-react";
+import { LayoutGrid, Type, WandSparkles } from "lucide-react";
+import FontSettingsFields from "@/components/FontSettingsFields";
 
-export default function SettingsPanel({ settings, onChange }) {
+export default function SettingsPanel({
+  settings,
+  onChange,
+  textSettingsMode,
+  onTextSettingsModeChange,
+}) {
   const update = (key) => (event) => {
     const value =
       event?.target?.type === "number"
@@ -11,36 +17,12 @@ export default function SettingsPanel({ settings, onChange }) {
         : event?.target?.value ?? event;
     onChange({ [key]: value });
   };
-
-  const teluguFonts = [
-    "Mandali",
-    "dhurjati",
-    "Gidugu",
-    "Gurajada",
-    "LakkiReddy",
-    "mallanna",
-    "Mandali-Regular",
-    "NATS",
-    "NTR",
-    "Peddana-Regular",
-    "Ponnala",
-    "PottiSreeramulu",
-    "ramabhadra",
-    "Ramaraja-Regular",
-    "RaviPrakash",
-    "suranna",
-    "Suravaram",
-    "SyamalaRamana",
-    "TenaliRamakrishna-Regular",
-    "TimmanaRegular",
-  ];
-
-  const fontOptions = Array.from(
-    new Set([settings.fontFamily, ...teluguFonts].filter(Boolean))
-  );
   const fieldClass =
     "input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-accent dark:text-slate-100";
   const blockClass = "rounded-[1.5rem] panel-shell p-4 sm:p-5";
+  const isSpecificMode = textSettingsMode === "specific";
+  const modeButtonBase =
+    "option-card rounded-[1.35rem] px-4 py-4 text-left";
 
   return (
     <div className="space-y-6">
@@ -50,113 +32,91 @@ export default function SettingsPanel({ settings, onChange }) {
           Text Styling
         </div>
         <h2 className="mt-4 text-2xl font-semibold text-ink dark:text-slate-100">
-          Template Settings
+          Text Styling
         </h2>
         <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">
-          Configure the default text style applied to every generated scene.
+          Choose whether one text style should apply to every song or each song
+          should carry its own font settings.
         </p>
       </div>
 
       <div className={blockClass}>
         <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-          <Type size={14} />
-          Font Settings
+          <WandSparkles size={14} />
+          Text Styling Mode
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="mt-4 block text-sm text-slate-600 dark:text-slate-300">
-            Font Family
-            <select
-              value={settings.fontFamily}
-              onChange={update("fontFamily")}
-              className={fieldClass}
-            >
-              {fontOptions.map((font) => (
-                <option key={font} value={font}>
-                  {font}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="mt-4 block text-sm text-slate-600 dark:text-slate-300">
-            Font Size
-            <input
-              type="number"
-              min={12}
-              value={settings.fontSize}
-              onChange={update("fontSize")}
-              className={fieldClass}
-            />
-          </label>
-          <label className="block text-sm text-slate-600 dark:text-slate-300">
-            Font Color
-            <input
-              type="color"
-              value={settings.fontColor}
-              onChange={update("fontColor")}
-              className="input-shell mt-2 h-14 w-full rounded-2xl px-2 dark:text-slate-100"
-            />
-          </label>
-          <div className="block text-sm text-slate-600 dark:text-slate-300">
-            Bold
-            <div className="panel-shell mt-2 flex min-h-[56px] items-center justify-between rounded-2xl px-4">
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => onTextSettingsModeChange("global")}
+            className={modeButtonBase}
+            data-active={!isSpecificMode}
+          >
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="font-medium text-slate-700 dark:text-slate-100">
-                  Use bold text
-                </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  Recommended for stage readability
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  Global font settings
                 </div>
               </div>
-              <Switch.Root
-                checked={settings.bold}
-                onCheckedChange={(value) => onChange({ bold: value })}
-                className="relative h-7 w-12 rounded-full bg-slate-300 transition data-[state=checked]:bg-accent dark:bg-slate-700"
+              <span
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                  !isSpecificMode
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200"
+                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+                }`}
               >
-                <Switch.Thumb className="block h-6 w-6 translate-x-0.5 rounded-full bg-white transition data-[state=checked]:translate-x-[1.45rem] dark:bg-slate-100" />
-              </Switch.Root>
+                {!isSpecificMode ? "Active" : "Available"}
+              </span>
             </div>
-          </div>
-          <div className="block text-sm text-slate-600 dark:text-slate-300">
-            Outline
-            <div className="panel-shell mt-2 flex min-h-[56px] items-center justify-between rounded-2xl px-4">
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onTextSettingsModeChange("specific")}
+            className={modeButtonBase}
+            data-active={isSpecificMode}
+          >
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="font-medium text-slate-700 dark:text-slate-100">
-                  Enable text outline
-                </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  Useful when lyrics need stronger separation from the background
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  Specific font settings per song
                 </div>
               </div>
-              <Switch.Root
-                checked={Boolean(settings.outline)}
-                onCheckedChange={(value) => onChange({ outline: value })}
-                className="relative h-7 w-12 rounded-full bg-slate-300 transition data-[state=checked]:bg-accent dark:bg-slate-700"
+              <span
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                  isSpecificMode
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200"
+                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+                }`}
               >
-                <Switch.Thumb className="block h-6 w-6 translate-x-0.5 rounded-full bg-white transition data-[state=checked]:translate-x-[1.45rem] dark:bg-slate-100" />
-              </Switch.Root>
+                {isSpecificMode ? "Active" : "Available"}
+              </span>
             </div>
-          </div>
-          <label className="block text-sm text-slate-600 dark:text-slate-300">
-            Outline Size
-            <input
-              type="number"
-              min={0}
-              value={settings.outlineSize}
-              onChange={update("outlineSize")}
-              className={fieldClass}
-            />
-          </label>
-          <label className="block text-sm text-slate-600 dark:text-slate-300">
-            Outline Color
-            <input
-              type="color"
-              value={settings.outlineColor}
-              onChange={update("outlineColor")}
-              className="input-shell mt-2 h-14 w-full rounded-2xl px-2 dark:text-slate-100"
-            />
-          </label>
+          </button>
         </div>
       </div>
+
+      {isSpecificMode ? (
+        <div className={blockClass}>
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+            <Type size={14} />
+            Song Font Overrides
+          </div>
+          <div className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
+            Configure per-song font settings in the <strong>Song Overrides</strong>{" "}
+            section. Layout controls below still apply globally to all songs.
+          </div>
+        </div>
+      ) : (
+        <div className={blockClass}>
+          <FontSettingsFields
+            settings={settings}
+            onChange={onChange}
+            showHeader
+            title="Global Font Settings"
+          />
+        </div>
+      )}
 
       <div className={blockClass}>
         <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
@@ -216,22 +176,28 @@ export default function SettingsPanel({ settings, onChange }) {
             />
           </label>
           <div className="block text-sm text-slate-600 dark:text-slate-300">
-            Use Custom Text Extents
-            <div className="panel-shell mt-2 flex min-h-[56px] items-center justify-between rounded-2xl px-4">
-              <div>
-                <div className="font-medium text-slate-700 dark:text-slate-100">
-                  Keep OBS text extents enabled
-                </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  Helpful when you want OBS wrapping to control layout
-                </div>
-              </div>
+            <div className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+              Use Custom Text Extents
+            </div>
+            <div
+              className="toggle-card mt-2 flex min-h-[78px] items-center justify-end gap-3 rounded-[1.35rem] px-4 py-3.5"
+              data-checked={Boolean(settings.useCustomTextExtents)}
+            >
+              <span
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                  settings.useCustomTextExtents
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200"
+                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+                }`}
+              >
+                {settings.useCustomTextExtents ? "Active" : "Off"}
+              </span>
               <Switch.Root
                 checked={Boolean(settings.useCustomTextExtents)}
                 onCheckedChange={(value) => onChange({ useCustomTextExtents: value })}
-                className="relative h-7 w-12 rounded-full bg-slate-300 transition data-[state=checked]:bg-accent dark:bg-slate-700"
+                className="toggle-switch"
               >
-                <Switch.Thumb className="block h-6 w-6 translate-x-0.5 rounded-full bg-white transition data-[state=checked]:translate-x-[1.45rem] dark:bg-slate-100" />
+                <Switch.Thumb className="toggle-thumb" />
               </Switch.Root>
             </div>
           </div>

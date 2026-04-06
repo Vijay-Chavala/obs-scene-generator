@@ -7,24 +7,13 @@ import TemplateUploader from "@/components/TemplateUploader";
 import LyricsPreview from "@/components/LyricsPreview";
 import SongBackgrounds from "@/components/SongBackgrounds";
 import SettingsPanel from "@/components/SettingsPanel";
+import {
+  DEFAULT_SETTINGS,
+  createSongFontSettings,
+  extractFontSettings,
+} from "@/lib/textSettings";
 import { parseLyrics } from "@/utils/parseLyrics";
 import { generateOBSJson } from "@/utils/generateOBSJson";
-
-const DEFAULT_SETTINGS = {
-  fontFamily: "Mandali",
-  fontSize: 256,
-  fontColor: "#ffffff",
-  bold: true,
-  outline: true,
-  outlineSize: 19,
-  outlineColor: "#aa0000",
-  alignment: "center",
-  verticalOffset: 0,
-  textBoxWidth: 1920,
-  textBoxHeight: 1080,
-  textMargin: 60,
-  useCustomTextExtents: false,
-};
 
 const EMPTY_SONG_BACKGROUND = {
   type: "none",
@@ -38,6 +27,9 @@ export default function HomePage() {
   const [parsedSongs, setParsedSongs] = useState([]);
   const [songBackgrounds, setSongBackgrounds] = useState([]);
   const [settings, setSettings] = useState({ ...DEFAULT_SETTINGS });
+  const [textSettingsMode, setTextSettingsMode] = useState("global");
+  const [songFontSettings, setSongFontSettings] = useState([]);
+  const [songFontSettingsTouched, setSongFontSettingsTouched] = useState(false);
   const [generatedJson, setGeneratedJson] = useState(null);
   const [status, setStatus] = useState("");
   const [theme, setTheme] = useState("dark");
@@ -61,6 +53,8 @@ export default function HomePage() {
     setFileName(name || "");
     setParsedSongs(parsed);
     setSongBackgrounds(parsed.map(() => ({ ...EMPTY_SONG_BACKGROUND })));
+    setSongFontSettings(createSongFontSettings(parsed, settings));
+    setSongFontSettingsTouched(false);
     setGeneratedJson(null);
     setStatus(parsed.length ? `Parsed ${parsed.length} song(s) and ${parsed.reduce((sum, song) => sum + song.scenes.length, 0)} scene(s).` : "No songs detected. Check the Song-X Name format.");
   };
@@ -80,6 +74,15 @@ export default function HomePage() {
 
   const handleSettingsChange = (updates) => {
     setSettings((prev) => ({ ...prev, ...updates }));
+    setGeneratedJson(null);
+  };
+
+  const handleTextSettingsModeChange = (mode) => {
+    setTextSettingsMode(mode);
+    if (mode === "specific" && !songFontSettingsTouched && parsedSongs.length) {
+      setSongFontSettings(createSongFontSettings(parsedSongs, settings));
+    }
+    setGeneratedJson(null);
   };
 
   const handleSongBackgroundChange = (songIndex, updates) => {
@@ -99,6 +102,20 @@ export default function HomePage() {
     setGeneratedJson(null);
   };
 
+  const handleSongFontSettingsChange = (songIndex, updates) => {
+    setSongFontSettings((prev) =>
+      parsedSongs.map((_, index) => {
+        const current = prev[index] || extractFontSettings(settings);
+        if (index !== songIndex) {
+          return current;
+        }
+        return { ...current, ...updates };
+      })
+    );
+    setSongFontSettingsTouched(true);
+    setGeneratedJson(null);
+  };
+
   const handleGenerate = () => {
     if (!parsedSongs.length) {
       setStatus("Upload lyrics before generating scenes.");
@@ -110,7 +127,14 @@ export default function HomePage() {
       return;
     }
     try {
-      const obsJson = generateOBSJson(parsedSongs, settings, templateData, songBackgrounds);
+      const obsJson = generateOBSJson(
+        parsedSongs,
+        settings,
+        templateData,
+        songBackgrounds,
+        songFontSettings,
+        textSettingsMode
+      );
       setGeneratedJson(obsJson);
       setStatus("OBS scene collection generated. Ready to download.");
     } catch (error) {
@@ -156,6 +180,9 @@ export default function HomePage() {
     setTemplateData(null);
     setParsedSongs([]);
     setSongBackgrounds([]);
+    setTextSettingsMode("global");
+    setSongFontSettings([]);
+    setSongFontSettingsTouched(false);
     setSettings({ ...DEFAULT_SETTINGS });
     setGeneratedJson(null);
     setStatus("Workspace reset. Upload lyrics to start again.");
@@ -230,7 +257,7 @@ export default function HomePage() {
                     <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200/60 bg-slate-100/70 text-slate-800 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-100'>
                       2
                     </span>
-                    Review songs + select backgrounds
+                    Review songs + choose media or font overrides
                   </li>
                   <li className='flex items-center gap-3'>
                     <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200/60 bg-slate-100/70 text-slate-800 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-100'>
@@ -311,14 +338,26 @@ export default function HomePage() {
           <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
             <LyricsPreview parsedSongs={parsedSongs} />
           </div>
-          <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
-            <SongBackgrounds parsedSongs={parsedSongs} backgrounds={songBackgrounds} onChange={handleSongBackgroundChange} />
-          </div>
         </section>
 
         <section className='space-y-6'>
           <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
-            <SettingsPanel settings={settings} onChange={handleSettingsChange} />
+            <SettingsPanel
+              settings={settings}
+              onChange={handleSettingsChange}
+              textSettingsMode={textSettingsMode}
+              onTextSettingsModeChange={handleTextSettingsModeChange}
+            />
+          </div>
+          <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
+            <SongBackgrounds
+              parsedSongs={parsedSongs}
+              backgrounds={songBackgrounds}
+              onChange={handleSongBackgroundChange}
+              textSettingsMode={textSettingsMode}
+              songFontSettings={songFontSettings}
+              onSongFontSettingsChange={handleSongFontSettingsChange}
+            />
           </div>
           <div className='rounded-[1.75rem] card-surface p-6 sm:p-7'>
             <div className='flex flex-col gap-5'>
