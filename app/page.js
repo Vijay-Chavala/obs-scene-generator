@@ -62,13 +62,21 @@ export default function HomePage() {
   const handleTemplateLoaded = (text, name) => {
     try {
       const parsed = JSON.parse(text);
+      const hasObsStructure =
+        Array.isArray(parsed?.sources) || Array.isArray(parsed?.scenes);
+      if (!hasObsStructure) {
+        setTemplateData(null);
+        setTemplateName("");
+        setStatus("Uploaded JSON is not a valid OBS scene collection.");
+        return;
+      }
       setTemplateData(parsed);
       setTemplateName(name || "");
-      setStatus("Template loaded. Scenes will be cloned from this file.");
+      setStatus("Existing OBS scene collection loaded. New lyrics scenes will be appended without changing your current scenes.");
     } catch (error) {
       setTemplateData(null);
       setTemplateName("");
-      setStatus("Template file is not valid JSON.");
+      setStatus("OBS scene collection file is not valid JSON.");
     }
   };
 
@@ -136,7 +144,11 @@ export default function HomePage() {
         textSettingsMode
       );
       setGeneratedJson(obsJson);
-      setStatus("OBS scene collection generated. Ready to download.");
+      setStatus(
+        templateData
+          ? "Merged OBS scene collection generated. Ready to download."
+          : "OBS lyrics scene collection generated. Ready to download."
+      );
     } catch (error) {
       const message = error?.message || "Unknown error";
       setStatus(`Generation failed: ${message}`);
@@ -233,12 +245,12 @@ export default function HomePage() {
               </div>
               <h1 className='mt-4 max-w-3xl font-display text-3xl font-semibold leading-tight text-ink dark:text-slate-50 md:text-4xl'>Church Lyrics Scene Generator</h1>
               <p className='mt-4 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300'>
-                Turn worship lyrics into polished OBS scene collections with faster parsing, cleaner defaults, and template-friendly export.
+                Turn worship lyrics into polished OBS scene collections with faster parsing, cleaner defaults, and append-ready export.
               </p>
               <div className='mt-6 flex flex-wrap gap-3'>
                 <div className='section-kicker border-0 bg-emerald-100/80 text-emerald-800 dark:bg-emerald-500/12 dark:text-emerald-200'>TXT parsing</div>
                 <div className='section-kicker border-0 bg-cyan-100/80 text-cyan-800 dark:bg-cyan-500/12 dark:text-cyan-200'>OBS JSON export</div>
-                <div className='section-kicker border-0 bg-amber-100/80 text-amber-800 dark:bg-amber-500/12 dark:text-amber-200'>Template cloning</div>
+                <div className='section-kicker border-0 bg-amber-100/80 text-amber-800 dark:bg-amber-500/12 dark:text-amber-200'>Collection append</div>
               </div>
 
               <div className='mt-7 rounded-[1.5rem] panel-shell p-5'>
@@ -257,11 +269,17 @@ export default function HomePage() {
                     <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200/60 bg-slate-100/70 text-slate-800 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-100'>
                       2
                     </span>
-                    Review songs + choose media or font overrides
+                    Optionally load an existing OBS collection
                   </li>
                   <li className='flex items-center gap-3'>
                     <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200/60 bg-slate-100/70 text-slate-800 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-100'>
                       3
+                    </span>
+                    Review songs + choose media or font overrides
+                  </li>
+                  <li className='flex items-center gap-3'>
+                    <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200/60 bg-slate-100/70 text-slate-800 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-100'>
+                      4
                     </span>
                     Generate + export scene collection
                   </li>
@@ -305,9 +323,9 @@ export default function HomePage() {
                   <div className='metric-tile rounded-2xl p-4'>
                     <div className='inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400'>
                       <LayoutTemplate size={14} />
-                      Template
+                      OBS Collection
                     </div>
-                    <div className='mt-2 text-sm font-semibold text-ink dark:text-slate-100'>{hasTemplate ? "Loaded" : "Default"}</div>
+                    <div className='mt-2 text-sm font-semibold text-ink dark:text-slate-100'>{hasTemplate ? "Append mode" : "Standalone"}</div>
                   </div>
                   <div className='metric-tile rounded-2xl p-4'>
                     <div className='inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400'>
@@ -377,8 +395,8 @@ export default function HomePage() {
                   <div className='mt-2 text-sm font-semibold text-ink dark:text-slate-100'>church-lyrics-scenes.json</div>
                 </div>
                 <div className='metric-tile rounded-2xl p-4'>
-                  <div className='text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400'>Active template</div>
-                  <div className='mt-2 truncate text-sm font-semibold text-ink dark:text-slate-100'>{templateName || "Built-in default template"}</div>
+                  <div className='text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400'>Export mode</div>
+                  <div className='mt-2 truncate text-sm font-semibold text-ink dark:text-slate-100'>{templateName ? `Append to ${templateName}` : "Standalone lyrics collection"}</div>
                 </div>
               </div>
               <div className='flex flex-wrap gap-3'>
